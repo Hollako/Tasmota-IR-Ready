@@ -1,146 +1,151 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
+
 # Tasmota-IRHVAC
-Home Assistant platform for controlling IR Air Conditioners via Tasmota IRHVAC command and compatible hardware
 
-This platform can **control hundreds of Air Conditioners**, out of the box, via **Tasmota IR transceivers**. It is based on ***tasmota-ircustom.bin v8.1*** and has also been tested successfully with newer Tasmota IR builds.
-The schematics to make such Tasmota IR Transceiver is shown on the picture. I recommend not to put this 100ohm resistor that is marked with light blue X. If you’re planning to power the board with microUSB and you have pin named *VU* connect the IRLED to it instead of *VIN*.
+Home Assistant integration for controlling IR air conditioners with the Tasmota `IRHVAC` command and compatible IR transceiver hardware.
 
-![image1](/images/schematics.jpeg)
+This integration can control many air conditioners through a Tasmota IR transmitter/receiver. It uses the vendor, model, mode, fan, swing, temperature, and feature values reported by Tasmota's IRHVAC decoder.
+
+## Hardware
+
+The schematics to make a Tasmota IR transceiver are shown below. I recommend not using the 100 ohm resistor marked with the light blue X. If you are powering the board with micro USB and you have a pin named `VU`, connect the IR LED to `VU` instead of `VIN`.
+
+![Schematics](/images/schematics.jpeg)
 
 Tasmota configuration looks like this:
 
-![image2](/images/tasmota_config.jpeg)
+![Tasmota configuration](/images/tasmota_config.jpeg)
 
-After configuration open Tasmota console, point your AC remote to the IR receiver and press the button for turning the AC on.
+After configuring Tasmota, open the Tasmota console, point your AC remote at the IR receiver, and press the button for turning the AC on.
 
-If everything in the above steps is made right, you should see a line like this (example with Fujitsu Air Conditioner):
+If everything is configured correctly, you should see a line like this:
 
 ```javascript
 {'IrReceived': {'Protocol': 'FUJITSU_AC', 'Bits': 128, 'Data': '0x0x1463001010FE09304013003008002025', 'Repeat': 0, 'IRHVAC': {'Vendor': 'FUJITSU_AC', 'Model': 1, 'Power': 'On', 'Mode': 'fan_only', 'Celsius': 'On', 'Temp': 20, 'FanSpeed': 'Auto', 'SwingV': 'Off', 'SwingH': 'Off', 'Quiet': 'Off', 'Turbo': 'Off', 'Econo': 'Off', 'Light': 'Off', 'Filter': 'Off', 'Clean': 'Off', 'Beep': 'Off', 'Sleep': -1}}}
 ```
 
-If vendor is not *‘Unknown’* and you see the *‘IRHVAC’* key, containing information, you can be sure that it will work for you.
+If `Vendor` is not `Unknown` and you see the `IRHVAC` key, the integration should be able to control your AC.
 
-Next step is to download the files from this repo, get the folder named *"tasmota_irhvac"* and place it in your *"custom_components"* folder.
-Restart Home Assistant.
-After restart, add the config from *"configuration.yaml"* to your *"configuration.yaml"* file, but do not save it yet because you will need to replace all values with your specific AC values.
-Using your remote and the IR Transceiver do the following steps to find your AC values that you have to fill in. You can find these values by looking in the console for them. They will appear in the ‘IrReceived’ JSON line (mentioned earlier).
-Cycle through all of your AC modes and write them in supported_modes. I have left some possible values commented.
+## Installation
 
-Cycle through your fan speeds and write them down in supported_fan_speeds.
+### HACS
 
-If your AC does not support horizontal swinging, remove *-"horizontal"* and *-"both"* from *supported_swing_list*.
-You can also add fixed vane positions to *supported_swing_list*. Vertical positions are *"highest"*, *"high"*, *"middle"*, *"low"* and *"lowest"*. Horizontal positions are *"left max"*, *"left"*, *"horizontal middle"*, *"right"*, *"right max"* and *"wide"*.
+1. Add this repository as a custom HACS integration repository.
+2. Install `Tasmota-IRHVAC` from HACS.
+3. Restart Home Assistant.
 
-Enter your *hvac_model*
+### Manual
 
-Change the *“min_temp”* and *“max_temp”* values with your AC min and max temp.
-*target_temp* is the initial target temp. 26 is default value and if you don’t want to change it, you can just remove the line.
-*away_temp* is the temp that will be set in away mode. If you don’t want to change it or you don’t need it you can remove that line.
-You can also remove all lines that doesn’t need to be changed and are marked with “optional”.
-Change the *name* with the desired name.
-After you finish with the config, save it and restart Home Assistant. Once restarted you can add in LovelaceUI a new *thermostat card* and select the newly integrated AC.
+1. Download this repository.
+2. Copy `custom_components/tasmota_irhvac` into your Home Assistant `custom_components` folder.
+3. Restart Home Assistant.
 
-This is a pic of 2 of my Tasmota IR transceivers, that I have mounted under my ACs so when using the ACs remote they have direct visual and update the state in Home Assistant (yes, it can do that too).
+## Setup From The UI
 
-![image2](/images/multisensors.jpeg)
+1. Go to **Settings -> Devices & services**.
+2. Select **Add integration**.
+3. Search for **Tasmota IRHVAC**.
+4. Enter the required connection fields:
+   - **Name**
+   - **AC Vendor / Protocol**
+   - **MQTT Command Topic**
+   - **MQTT State Topic**
 
-As an addition you can add these 2 scripts from *scripts.yaml* in your *scripts.yaml* and use them to send all kind of HEX IR codes and RAW IR codes, by just naming your multisensors using room name (lowercase) and the word “Multisensor”. Like *“kitchenMultisensor”* or *“livingroomMultisensor”*.
+After the integration is created, open **Configure** on the integration entry to set the rest of the options.
+
+### Connection & Sensors
+
+Use this page to edit MQTT topics, MQTT delay, and optional sensors:
+
+- `state_topic_2`: optional second MQTT state topic, useful if you want to subscribe to both `tele/.../RESULT` and `stat/.../RESULT`.
+- `availability_topic`: optional Tasmota LWT topic. If left blank, the integration tries to derive `tele/<device>/LWT` from the command topic.
+- `temperature_sensor`: optional current-temperature sensor.
+- `humidity_sensor`: optional current-humidity sensor.
+- `power_sensor`: optional entity that reflects the AC physical power state.
+
+### AC Capabilities
+
+Use your original AC remote and the Tasmota console to discover the values your AC supports. Cycle through all modes, fan speeds, swing modes, and feature buttons, then select only the values your AC actually reports.
+
+Supported HVAC modes include:
+
+- `heat`
+- `cool`
+- `heat_cool`
+- `auto`
+- `dry`
+- `fan_only`
+- `auto_fan_only`
+- `fan_only_auto`
+
+Supported fan speeds include Home Assistant standard values and Tasmota IRHVAC values. If your AC reports `min`, `medium`, and `max`, select those values. Home Assistant displays `min` as `low` and `max` as `high` so the built-in climate card icons work correctly, while the integration still sends `min` and `max` to Tasmota.
+
+Supported swing options include:
+
+- `off`
+- `both`
+- `vertical`
+- `horizontal`
+- `highest`
+- `high`
+- `middle`
+- `low`
+- `lowest`
+- `left max`
+- `left`
+- `horizontal middle`
+- `right`
+- `right max`
+- `wide`
+
+`vertical`, `horizontal`, and `both` are automatic swing modes. Fixed vane positions send exact `SwingV` or `SwingH` values to Tasmota. `horizontal middle` is displayed separately in Home Assistant to avoid conflicting with vertical `middle`, but it sends `SwingH: middle` to Tasmota.
+
+### Behavior
+
+Use this page to configure default behavior and optional feature switches.
+
+Feature switches can create separate Home Assistant switch entities for AC functions such as:
+
+- `SwingV`
+- `SwingH`
+- `Quiet`
+- `Turbo`
+- `Econo`
+- `Light`
+- `Filter`
+- `Clean`
+- `Beep`
+- `Sleep`
+
+Only enable switches for features your AC and Tasmota protocol support.
+
+## Dashboard
+
+After setup, add the climate entity to a Home Assistant dashboard using a thermostat card, tile card, or any climate-compatible card.
+
+This is a picture of two Tasmota IR transceivers mounted under AC units. When the original AC remote is used, the receivers can also update the state in Home Assistant.
+
+![Mounted multisensors](/images/multisensors.jpeg)
+
+## Extra IR Scripts
+
+As an addition, you can add these scripts to `scripts.yaml` and use them to send HEX IR codes and RAW IR codes by naming your multisensors with a room name followed by `Multisensor`, for example `kitchenMultisensor` or `livingroomMultisensor`.
 
 ```yaml
 ir_code:
   sequence:
-  - data_template:
-      payload: '{"Protocol":"{{ protocol }}","Bits": {{ bits }},"Data": 0x{{ data }}}'
-      topic: 'cmnd/{{ room }}Multisensor/irsend'
-    service: mqtt.publish
+    - data_template:
+        payload: '{"Protocol":"{{ protocol }}","Bits": {{ bits }},"Data": 0x{{ data }}}'
+        topic: "cmnd/{{ room }}Multisensor/irsend"
+      service: mqtt.publish
 ir_raw:
   sequence:
-  - data_template:
-      payload: '0, {{ data }}'
-      topic: 'cmnd/{{ room }}Multisensor/irsend'
-    service: mqtt.publish
+    - data_template:
+        payload: "0, {{ data }}"
+        topic: "cmnd/{{ room }}Multisensor/irsend"
+      service: mqtt.publish
 ```
 
-You can then use these scripts, for example, in a *button card*. Create a new card, put inside it the content of *card_configuration.yaml*, change *bits:*, *data:*, *protocol:* and *room:* with your desired values and test it.
+You can then use these scripts from a dashboard button card. See `examples/card_configuration.yaml` for a full example.
 
-```yaml
-cards:
-  - cards:
-      - action: service
-        color: white
-        icon: 'mdi:power'
-        name: Turn On Audio HEX
-        service:
-          action: ir_code
-          data:
-            bits: 12
-            data: A80
-            protocol: SONY
-            room: kitchen
-          domain: script
-        style:
-          - color: white
-          - background: green
-          - '--disabled-text-color': white
-        type: 'custom:button-card'
-      - action: service
-        color: white
-        icon: 'mdi:power'
-        name: Turn Off Audio HEX
-        service:
-          action: ir_code
-          data:
-            bits: 12
-            data: E85
-            protocol: SONY
-            room: kitchen
-          domain: script
-        style:
-          - color: white
-          - background: red
-          - '--disabled-text-color': white
-        type: 'custom:button-card'
-      - action: service
-        color: white
-        icon: 'mdi:power'
-        name: Test AC Raw
-        service:
-          action: ir_raw
-          data:
-            data: >-
-              3290, 1602,  424, 390,  424, 390,  424, 1232,  398, 390,  424,
-              1212,  420, 390,  424, 390,  424, 390,  424, 1232,  398, 1234, 
-              398, 390,  424, 390,  426, 390,  424, 1232,  400, 1230,  398,
-              392,  424, 390,  426, 390,  426, 390,  424, 390,  424, 390,  424,
-              390,  424, 392,  424, 390,  424, 392,  424, 390,  424, 390,  424,
-              390,  424, 1232,  398, 390,  424, 390,  426, 390,  424, 390,  424,
-              392,  424, 390,  424, 392,  426, 1230,  400, 390,  424, 390,  426,
-              390,  424, 390,  424, 1232,  400, 1232,  398, 1232,  398, 1232, 
-              400, 1232,  398, 1232,  400, 1232,  400, 1232,  400, 390,  426,
-              390,  424, 1206,  424, 390,  424, 390,  424, 392,  424, 390,  424,
-              392,  424, 390,  426, 390,  424, 390,  424, 1230,  402, 1230, 
-              402, 390,  424, 390,  424, 1230,  402, 390,  424, 390,  424, 390, 
-              424, 390,  424, 390,  426, 390,  424, 1230,  402, 1228,  402,
-              390,  424, 390,  424, 390,  426, 390,  424, 390,  426, 390,  424,
-              390,  424, 390,  426, 390,  426, 390,  424, 390,  424, 390,  426,
-              390,  424, 390,  424, 392,  426, 390,  424, 390,  424, 392,  424,
-              390,  424, 390,  424, 390,  424, 390,  424, 390,  424, 390,  424,
-              390,  424, 390,  426, 390,  426, 390,  424, 390,  424, 392,  424,
-              390,  424, 390,  424, 390,  424, 390,  424, 392,  424, 390,  424,
-              390,  424, 390,  426, 390,  424, 392,  424, 390,  424, 392,  424,
-              390,  424, 390,  424, 1228,  404, 388,  424, 390,  424, 392,  424,
-              1228,  404, 1228,  402, 1228,  402, 390,  426, 1228,  402, 390, 
-              424, 390,  424
-            room: bedroom
-          domain: script
-        style:
-          - color: white
-          - background: blue
-          - '--disabled-text-color': white
-        type: 'custom:button-card'
-    type: vertical-stack
-type: vertical-stack
-```
-
-More info about parts needed and discussion about it: [IN THIS HA COMMUNITY THREAD](https://community.home-assistant.io/t/tasmota-mqtt-irhvac-controler/162915/31)
+More info about parts needed and discussion: [Home Assistant community thread](https://community.home-assistant.io/t/tasmota-mqtt-irhvac-controler/162915/31)
