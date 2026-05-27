@@ -83,6 +83,29 @@
           "supported_fan_speeds": "Select only the fan speeds your AC remote supports",
           "supported_swing_list": "Select swing options available on your AC. Use fixed positions (Highest/High/…) instead of auto sweep if your AC supports vane positioning",
           "hvac_model": "Leave at -1 for auto-detect, or enter the model number shown in Tasmota IRHVAC output"
+        },
+        "sections": {
+          "hvac_modes": {
+            "name": "Supported HVAC Modes",
+            "description": "Select only the modes your AC remote supports",
+            "data": {
+              "supported_modes": "Modes"
+            }
+          },
+          "fan_speeds": {
+            "name": "Supported Fan Speeds",
+            "description": "Select only the fan speeds your AC remote supports",
+            "data": {
+              "supported_fan_speeds": "Fan speeds"
+            }
+          },
+          "swing_positions": {
+            "name": "Supported Swing Positions",
+            "description": "Select swing options available on your AC. Use fixed positions (Highest/High/…) instead of auto sweep if your AC supports vane positioning",
+            "data": {
+              "supported_swing_list": "Swing positions"
+            }
+          }
         }
       },
       "behavior": {

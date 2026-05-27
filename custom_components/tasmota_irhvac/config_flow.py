@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any
 
 import voluptuous as vol
+from homeassistant.data_entry_flow import section
 from homeassistant.components.climate.const import (
     FAN_AUTO,
     FAN_DIFFUSE,
@@ -97,6 +98,9 @@ from .const import (
 )
 
 _CONF_STATE_TOPIC_2 = CONF_STATE_TOPIC + "_2"
+_SECTION_HVAC_MODES = "hvac_modes"
+_SECTION_FAN_SPEEDS = "fan_speeds"
+_SECTION_SWING_POSITIONS = "swing_positions"
 
 # ---------------------------------------------------------------------------
 # Selector option lists
@@ -320,6 +324,12 @@ class TasmotaIrhvacOptionsFlow(OptionsFlow):
     ) -> dict:
         """AC capability settings: modes, fan, swing, temperature range."""
         if user_input is not None:
+            for section_key in (
+                _SECTION_HVAC_MODES,
+                _SECTION_FAN_SPEEDS,
+                _SECTION_SWING_POSITIONS,
+            ):
+                user_input.update(user_input.pop(section_key, {}))
             self._options.update(user_input)
             return await self.async_step_behavior()
 
@@ -327,30 +337,61 @@ class TasmotaIrhvacOptionsFlow(OptionsFlow):
 
         schema = vol.Schema(
             {
-                vol.Required(
-                    CONF_MODES_LIST,
-                    default=current.get(CONF_MODES_LIST, DEFAULT_MODES_LIST),
-                ): SelectSelector(SelectSelectorConfig(
-                    options=HVAC_MODE_OPTIONS,
-                    multiple=True,
-                    mode=SelectSelectorMode.DROPDOWN,
-                )),
-                vol.Required(
-                    CONF_FAN_LIST,
-                    default=current.get(CONF_FAN_LIST, DEFAULT_FAN_LIST),
-                ): SelectSelector(SelectSelectorConfig(
-                    options=FAN_MODE_OPTIONS,
-                    multiple=True,
-                    mode=SelectSelectorMode.DROPDOWN,
-                )),
-                vol.Required(
-                    CONF_SWING_LIST,
-                    default=current.get(CONF_SWING_LIST, DEFAULT_SWING_LIST),
-                ): SelectSelector(SelectSelectorConfig(
-                    options=SWING_MODE_OPTIONS,
-                    multiple=True,
-                    mode=SelectSelectorMode.DROPDOWN,
-                )),
+                vol.Required(_SECTION_HVAC_MODES): section(
+                    vol.Schema(
+                        {
+                            vol.Required(
+                                CONF_MODES_LIST,
+                                default=current.get(
+                                    CONF_MODES_LIST, DEFAULT_MODES_LIST
+                                ),
+                            ): SelectSelector(
+                                SelectSelectorConfig(
+                                    options=HVAC_MODE_OPTIONS,
+                                    multiple=True,
+                                    mode=SelectSelectorMode.DROPDOWN,
+                                )
+                            ),
+                        }
+                    ),
+                    {"collapsed": False},
+                ),
+                vol.Required(_SECTION_FAN_SPEEDS): section(
+                    vol.Schema(
+                        {
+                            vol.Required(
+                                CONF_FAN_LIST,
+                                default=current.get(CONF_FAN_LIST, DEFAULT_FAN_LIST),
+                            ): SelectSelector(
+                                SelectSelectorConfig(
+                                    options=FAN_MODE_OPTIONS,
+                                    multiple=True,
+                                    mode=SelectSelectorMode.DROPDOWN,
+                                )
+                            ),
+                        }
+                    ),
+                    {"collapsed": False},
+                ),
+                vol.Required(_SECTION_SWING_POSITIONS): section(
+                    vol.Schema(
+                        {
+                            vol.Required(
+                                CONF_SWING_LIST,
+                                default=current.get(
+                                    CONF_SWING_LIST, DEFAULT_SWING_LIST
+                                ),
+                            ): SelectSelector(
+                                SelectSelectorConfig(
+                                    options=SWING_MODE_OPTIONS,
+                                    multiple=True,
+                                    mode=SelectSelectorMode.DROPDOWN,
+                                )
+                            ),
+                        }
+                    ),
+                    {"collapsed": False},
+                ),
                 vol.Required(
                     CONF_INITIAL_OPERATION_MODE,
                     default=current.get(CONF_INITIAL_OPERATION_MODE, HVACMode.OFF),
