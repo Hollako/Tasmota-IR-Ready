@@ -10,7 +10,7 @@ This integration can control many air conditioners through a Tasmota IR transmit
 
 Use a Tasmota-compatible IR transmitter/receiver device that supports the `IRHVAC` command.
 
-![Tasmota IRHVAC with Home Assistant](/images/tasmota_homeassistant_irhub.png)
+<img src="/images/tasmota_homeassistant_irhub.png" alt="Tasmota IRHVAC with Home Assistant" width="480">
 
 Tasmota configuration looks like this:
 
