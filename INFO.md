@@ -1,2 +1,2 @@
 Tasmota-IRHVAC
-Home Assistant platform for controlling IR Air Conditioners via Tasmota IRHVAC command and compatible hardware
+Home Assistant integration for controlling IR air conditioners via Tasmota IRHVAC command and compatible hardware
