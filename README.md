@@ -8,9 +8,9 @@ This integration can control many air conditioners through a Tasmota IR transmit
 
 ## Hardware
 
-The schematics to make a Tasmota IR transceiver are shown below. I recommend not using the 100 ohm resistor marked with the light blue X. If you are powering the board with micro USB and you have a pin named `VU`, connect the IR LED to `VU` instead of `VIN`.
+Use a Tasmota-compatible IR transmitter/receiver device that supports the `IRHVAC` command.
 
-![Schematics](/images/schematics.jpeg)
+![Tasmota IRHVAC with Home Assistant](/images/tasmota_homeassistant_irhub.png)
 
 Tasmota configuration looks like this:
 
@@ -123,9 +123,7 @@ Only enable switches for features your AC and Tasmota protocol support.
 
 After setup, add the climate entity to a Home Assistant dashboard using a thermostat card, tile card, or any climate-compatible card.
 
-This is a picture of two Tasmota IR transceivers mounted under AC units. When the original AC remote is used, the receivers can also update the state in Home Assistant.
-
-![Mounted multisensors](/images/multisensors.jpeg)
+When the original AC remote is used, a Tasmota IR receiver can also update the state in Home Assistant.
 
 ## Extra IR Scripts
 
