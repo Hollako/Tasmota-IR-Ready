@@ -16,7 +16,9 @@ Use a Tasmota-compatible IR transmitter/receiver device that supports the `IRHVA
 
 Tasmota configuration looks like this:
 
-![Tasmota configuration](/images/tasmota_config.jpeg)
+<p align="center">
+  <img src="/images/tasmota_config.jpeg" alt="Tasmota configuration" width="480">
+</p>
 
 After configuring Tasmota, open the Tasmota console, point your AC remote at the IR receiver, and press the button for turning the AC on.
 
