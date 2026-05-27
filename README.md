@@ -129,25 +129,4 @@ After setup, add the climate entity to a Home Assistant dashboard using a thermo
 
 When the original AC remote is used, a Tasmota IR receiver can also update the state in Home Assistant.
 
-## Extra IR Scripts
-
-As an addition, you can add these scripts to `scripts.yaml` and use them to send HEX IR codes and RAW IR codes by naming your multisensors with a room name followed by `Multisensor`, for example `kitchenMultisensor` or `livingroomMultisensor`.
-
-```yaml
-ir_code:
-  sequence:
-    - data_template:
-        payload: '{"Protocol":"{{ protocol }}","Bits": {{ bits }},"Data": 0x{{ data }}}'
-        topic: "cmnd/{{ room }}Multisensor/irsend"
-      service: mqtt.publish
-ir_raw:
-  sequence:
-    - data_template:
-        payload: "0, {{ data }}"
-        topic: "cmnd/{{ room }}Multisensor/irsend"
-      service: mqtt.publish
-```
-
-You can then use these scripts from a dashboard button card. See `examples/card_configuration.yaml` for a full example.
-
 More info about parts needed and discussion: [Home Assistant community thread](https://community.home-assistant.io/t/tasmota-mqtt-irhvac-controler/162915/31)
