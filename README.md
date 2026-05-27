@@ -128,5 +128,3 @@ Only enable switches for features your AC and Tasmota protocol support.
 After setup, add the climate entity to a Home Assistant dashboard using a thermostat card, tile card, or any climate-compatible card.
 
 When the original AC remote is used, a Tasmota IR receiver can also update the state in Home Assistant.
-
-More info about parts needed and discussion: [Home Assistant community thread](https://community.home-assistant.io/t/tasmota-mqtt-irhvac-controler/162915/31)
