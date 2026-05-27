@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import ast, sys; ast.parse\\(open\\('custom_components/tasmota_irhvac/climate.py'\\).read\\(\\)\\); print\\('climate.py: syntax OK'\\)\")",
+      "Bash(python -c \"import ast, sys; ast.parse\\(open\\('custom_components/tasmota_irhvac/config_flow.py'\\).read\\(\\)\\); print\\('config_flow.py: syntax OK'\\)\")",
+      "Bash(py -3 -c \"import ast; ast.parse\\(open\\('custom_components/tasmota_irhvac/climate.py'\\).read\\(\\)\\); print\\('climate.py OK'\\)\")",
+      "Bash(py -3 -c \"import ast; ast.parse\\(open\\('custom_components/tasmota_irhvac/config_flow.py'\\).read\\(\\)\\); print\\('config_flow.py OK'\\)\")",
+      "Bash(py -3 -c \"import ast; ast.parse\\(open\\('custom_components/tasmota_irhvac/const.py'\\).read\\(\\)\\); print\\('const.py OK'\\)\")"
+    ]
+  }
+}

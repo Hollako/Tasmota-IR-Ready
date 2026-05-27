@@ -6,7 +6,7 @@ climate:
     # State is updated when the tasmota device receives an IR signal (includes own transmission and original remote)
     # useful when a normal remote is in use alongside the tasmota device, may be less reliable than the second option.
     state_topic: "tele/your_tasmota_device/RESULT"
-    # State is updated when the tasmota device completes IR transmissionm, should be pretty reliable.
+    # State is updated when the tasmota device completes IR transmission, should be pretty reliable.
     #state_topic: "stat/your_tasmota_device/RESULT"
     # Optional second state topic, This option allows you to subscribe to both "tele" and "stat" messages.
     state_topic_2: "stat/your_tasmota_device/RESULT"
@@ -14,7 +14,7 @@ climate:
     #availability_topic: "tele/your_tasmota_device/LWT"
     temperature_sensor: sensor.kitchen_temperature
     humidity_sensor: sensor.kitchen_humidity #optional - default None
-    power_sensor: binaly_sensor.kitchen_ac_power #optional - default None
+    power_sensor: binary_sensor.kitchen_ac_power #optional - default None
     vendor: "ELECTRA_AC"
     # When operating grouped devices at the same time, MQTT commands are intentionally delayed to prevent multiple devices
     # from performing the same operation at the same time. This allows the high current peaks to be shifted.
@@ -33,13 +33,13 @@ climate:
       - "auto"
       - "off" #Turns the AC off - Should be in quotes
       # Some devices have "auto" and "fan_only" switched
-      # If the following two lines are uncommented, "auto" and "fan" shoud be commented out
+      # If the following two lines are uncommented, "auto" and "fan_only" should be commented out
       #- "auto_fan_only" #if remote shows fan but tasmota says auto
       #- "fan_only_auto" #if remote shows auto but tasmota says fan
     supported_fan_speeds:
       # Some devices say max,but it is high, and auto which is max
       # If you uncomment the following two, you have to comment high and max
-      # - "auto_max" #woud become max
+      # - "auto_max" #would become max
       # - "max_high" #would become high
       #- "on"
       #- "off"
@@ -56,8 +56,21 @@ climate:
     supported_swing_list:
       - "off"
       - "vertical" #up to down
+      # Fixed vertical vane positions
+      # - "highest"
+      # - "high"
+      # - "middle"
+      # - "low"
+      # - "lowest"
       # - "horizontal" # Left to right
       # - "both"
+      # Fixed horizontal vane positions
+      # - "left max"
+      # - "left"
+      # - "horizontal middle"
+      # - "right"
+      # - "right max"
+      # - "wide"
     default_quiet_mode: "Off" #optional - default "Off" string value
     default_turbo_mode: "Off" #optional - default "Off" string value
     default_econo_mode: "Off" #optional - default "Off" string value

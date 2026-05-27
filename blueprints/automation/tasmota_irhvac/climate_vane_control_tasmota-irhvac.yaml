@@ -1,6 +1,6 @@
 blueprint:
   name: Climate Vane Control - Tasmota-IRHVAC
-  description: Contoroling vertical or horizontal vane swing, potition of Climate on Tasmota-IRHVAC
+  description: Controlling the vertical or horizontal vane swing position of a Tasmota-IRHVAC climate entity
   domain: automation
   source_url: https://github.com/hristo-atanasov/Tasmota-IRHVAC/blob/master/blueprints/automation/tasmota_irhvac/climate_vane_control_tasmota-irhvac.yaml
   input:

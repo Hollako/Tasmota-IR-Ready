@@ -18,14 +18,14 @@ HVAC_FAN_MAX = "max"
 # Some devices have "auto" and "fan_only" changed
 HVAC_MODE_AUTO_FAN = "auto_fan_only"
 
-# Some devicec have "fan_only" and "auto" changed
+# Some devices have "fan_only" and "auto" changed
 HVAC_MODE_FAN_AUTO = "fan_only_auto"
 
 # Some devices say max,but it is high, and auto which is max
 HVAC_FAN_MAX_HIGH = "max_high"
 HVAC_FAN_AUTO_MAX = "auto_max"
 
-# Hvac moed list
+# HVAC mode list
 HVAC_MODES = [
     HVACMode.OFF,
     HVACMode.HEAT,
@@ -150,6 +150,62 @@ ATTRIBUTES_IRHVAC = {
 }
 
 ON_OFF_LIST = ["ON", "OFF", "On", "Off", "on", "off"]
+
+SWING_VERTICAL_POSITIONS = ["highest", "high", "middle", "low", "lowest"]
+SWING_HORIZONTAL_POSITIONS = [
+    "left max",
+    "left",
+    "horizontal middle",
+    "right",
+    "right max",
+    "wide",
+]
+SWING_HORIZONTAL_PAYLOAD = {
+    "left max": "left max",
+    "left": "left",
+    "horizontal middle": "middle",
+    "right": "right",
+    "right max": "right max",
+    "wide": "wide",
+}
+SWING_HORIZONTAL_MODE = {payload: mode for mode, payload in SWING_HORIZONTAL_PAYLOAD.items()}
+SWING_MODES = [
+    "off",
+    "both",
+    "vertical",
+    "horizontal",
+    *SWING_VERTICAL_POSITIONS,
+    *SWING_HORIZONTAL_POSITIONS,
+]
+
+# Canonical display order for fan speeds in the climate card.
+# Any speed not in this list is appended at the end.
+FAN_MODES_ORDER = [
+    "off",
+    "on",
+    "min",
+    "low",
+    "middle",
+    "medium",
+    "high",
+    "max",
+    "top",
+    "focus",
+    "diffuse",
+    "auto",
+    "max_high",
+    "auto_max",
+]
+
+DEFAULT_MODES_LIST = [
+    HVACMode.COOL,
+    HVACMode.HEAT,
+    HVACMode.DRY,
+    HVAC_MODE_AUTO_FAN,
+    HVAC_MODE_FAN_AUTO,
+]
+DEFAULT_SWING_LIST = ["off", "vertical"]
+DEFAULT_INITIAL_OPERATION_MODE = "off"  # HVACMode.OFF
 
 TOGGLE_ALL_LIST = [
     "SwingV",

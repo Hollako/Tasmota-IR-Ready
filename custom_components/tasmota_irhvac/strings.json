@@ -1,0 +1,111 @@
+{
+  "entity": {
+    "climate": {
+      "tasmota_irhvac": {
+        "state_attributes": {
+          "fan_mode": {
+            "name": "Fan speed"
+          },
+          "swing_mode": {
+            "state": {
+              "vertical": "Auto",
+              "horizontal": "Auto",
+              "both": "Auto"
+            }
+          }
+        }
+      }
+    }
+  },
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Tasmota IRHVAC",
+        "description": "Enter the minimum details to connect to your AC. All other settings can be configured afterwards via the **Configure** button.",
+        "data": {
+          "name": "Name",
+          "vendor": "AC Vendor / Protocol",
+          "command_topic": "MQTT Command Topic",
+          "state_topic": "MQTT State Topic"
+        },
+        "data_description": {
+          "vendor": "The IRHVAC vendor string, e.g. ELECTRA_AC, MITSUBISHI_AC, SAMSUNG_AC …",
+          "command_topic": "Topic to publish IR commands to, e.g. cmnd/tasmota_ir/IRHVAC",
+          "state_topic": "Topic to subscribe for AC state updates, e.g. tele/tasmota_ir/RESULT"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "This device (command topic) is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Connection & Sensors",
+        "data": {
+          "name": "Name",
+          "vendor": "AC Vendor / Protocol",
+          "command_topic": "MQTT Command Topic",
+          "state_topic": "MQTT State Topic",
+          "state_topic_2": "MQTT State Topic 2 (optional)",
+          "availability_topic": "Availability Topic (optional)",
+          "mqtt_delay": "MQTT Delay (seconds)",
+          "temperature_sensor": "Temperature Sensor (optional)",
+          "humidity_sensor": "Humidity Sensor (optional)",
+          "power_sensor": "Power Sensor (optional)"
+        },
+        "data_description": {
+          "state_topic_2": "Subscribe to a second topic, e.g. stat/tasmota_ir/RESULT alongside tele/",
+          "availability_topic": "Leave blank to auto-derive from the command topic, e.g. tele/tasmota_ir/LWT",
+          "mqtt_delay": "Delay before publishing — useful when grouping multiple devices",
+          "power_sensor": "Binary/switch sensor that reflects the AC's physical power state"
+        }
+      },
+      "capabilities": {
+        "title": "AC Capabilities",
+        "data": {
+          "supported_modes": "Supported HVAC Modes",
+          "supported_fan_speeds": "Supported Fan Speeds",
+          "supported_swing_list": "Supported Swing Positions",
+          "initial_operation_mode": "Initial Operation Mode",
+          "min_temp": "Minimum Temperature",
+          "max_temp": "Maximum Temperature",
+          "target_temp": "Default Target Temperature",
+          "precision": "Temperature Precision",
+          "temp_step": "Temperature Step",
+          "celsius_mode": "Temperature Unit",
+          "hvac_model": "HVAC Model Number",
+          "away_temp": "Away Temperature (0 = disabled)"
+        },
+        "data_description": {
+          "supported_modes": "Select only the modes your AC remote supports",
+          "supported_fan_speeds": "Select only the fan speeds your AC remote supports",
+          "supported_swing_list": "Select swing options available on your AC. Use fixed positions (Highest/High/…) instead of auto sweep if your AC supports vane positioning",
+          "hvac_model": "Leave at -1 for auto-detect, or enter the model number shown in Tasmota IRHVAC output"
+        }
+      },
+      "behavior": {
+        "title": "Behavior",
+        "data": {
+          "toggle_list": "Feature Switches",
+          "default_sleep_mode": "Default Sleep (-1 = off)",
+          "default_swingv": "Default Vertical Vane Position",
+          "default_swingh": "Default Horizontal Vane Position",
+          "keep_mode_when_off": "Keep Mode When Off",
+          "ignore_off_temp": "Ignore Temperature When Off",
+          "special_mode": "Special Mode (power sensor)"
+        },
+        "data_description": {
+          "toggle_list": "Each checked item creates a dedicated On/Off switch entity in Home Assistant",
+          "default_sleep_mode": "Sleep timer value sent with every IR command. Use -1 to leave it off",
+          "default_swingv": "Fixed vertical vane position sent when no swing mode is active",
+          "default_swingh": "Fixed horizontal vane position sent when no swing mode is active",
+          "keep_mode_when_off": "When off, still include the last active mode in the MQTT payload so the AC remembers it",
+          "ignore_off_temp": "Do not update the target temperature from MQTT payloads received while the AC is off",
+          "special_mode": "HVAC mode to report when the power sensor turns on unexpectedly (e.g. auto-clean)"
+        }
+      }
+    }
+  }
+}

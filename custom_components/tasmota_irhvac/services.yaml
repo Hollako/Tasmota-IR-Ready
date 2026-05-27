@@ -225,7 +225,7 @@ set_swingv:
 
 set_swingh:
   name: Set swingh
-  description: Sets vane horizonal position.
+  description: Sets vane horizontal position.
   target:
     entity:
       integration: tasmota_irhvac

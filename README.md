@@ -2,7 +2,7 @@
 # Tasmota-IRHVAC
 Home Assistant platform for controlling IR Air Conditioners via Tasmota IRHVAC command and compatible hardware
 
-This is my new platform, that can **control hunderds of Air Conditioners**, out of the box, via **Tasmota IR transceivers**. It is based on the latest ***“tasmota-ircustom.bin” v8.1*** (tested successfully with Tasmota-ir v10.0.0). Currently it **works on Home Assistant 0.94 (may be some newer too) and from 0.103.x right to the latest 0.110.0 at this time** (Tested successfully with Home Assistant 2021.12.2)
+This platform can **control hundreds of Air Conditioners**, out of the box, via **Tasmota IR transceivers**. It is based on ***tasmota-ircustom.bin v8.1*** and has also been tested successfully with newer Tasmota IR builds.
 The schematics to make such Tasmota IR Transceiver is shown on the picture. I recommend not to put this 100ohm resistor that is marked with light blue X. If you’re planning to power the board with microUSB and you have pin named *VU* connect the IRLED to it instead of *VIN*.
 
 ![image1](/images/schematics.jpeg)
@@ -15,21 +15,22 @@ After configuration open Tasmota console, point your AC remote to the IR receive
 
 If everything in the above steps is made right, you should see a line like this (example with Fujitsu Air Conditioner):
 
-```javacript
+```javascript
 {'IrReceived': {'Protocol': 'FUJITSU_AC', 'Bits': 128, 'Data': '0x0x1463001010FE09304013003008002025', 'Repeat': 0, 'IRHVAC': {'Vendor': 'FUJITSU_AC', 'Model': 1, 'Power': 'On', 'Mode': 'fan_only', 'Celsius': 'On', 'Temp': 20, 'FanSpeed': 'Auto', 'SwingV': 'Off', 'SwingH': 'Off', 'Quiet': 'Off', 'Turbo': 'Off', 'Econo': 'Off', 'Light': 'Off', 'Filter': 'Off', 'Clean': 'Off', 'Beep': 'Off', 'Sleep': -1}}}
 ```
 
 If vendor is not *‘Unknown’* and you see the *‘IRHVAC’* key, containing information, you can be sure that it will work for you.
 
 Next step is to download the files from this repo, get the folder named *"tasmota_irhvac"* and place it in your *"custom_components"* folder.
-Reastart Home Assistant!
-After restart add the config from *"configuration.yaml"* in your *"configuration.yaml"* file, but don’t save it yet, because you’ll need to replace all values with your speciffic AC values.
+Restart Home Assistant.
+After restart, add the config from *"configuration.yaml"* to your *"configuration.yaml"* file, but do not save it yet because you will need to replace all values with your specific AC values.
 Using your remote and the IR Transceiver do the following steps to find your AC values that you have to fill in. You can find these values by looking in the console for them. They will appear in the ‘IrReceived’ JSON line (mentioned earlier).
-Cycle trough all of your AC modes and write them in supported_modes. I have left some possible values commented.
+Cycle through all of your AC modes and write them in supported_modes. I have left some possible values commented.
 
-Cycle trough your fan speeds and and write them down in supported_fan_speeds
+Cycle through your fan speeds and write them down in supported_fan_speeds.
 
-If your AC doesnt support horizontal swinging remove *-"horizontal"* and *-"both"* from *supported_swing_list*
+If your AC does not support horizontal swinging, remove *-"horizontal"* and *-"both"* from *supported_swing_list*.
+You can also add fixed vane positions to *supported_swing_list*. Vertical positions are *"highest"*, *"high"*, *"middle"*, *"low"* and *"lowest"*. Horizontal positions are *"left max"*, *"left"*, *"horizontal middle"*, *"right"*, *"right max"* and *"wide"*.
 
 Enter your *hvac_model*
 
@@ -61,7 +62,7 @@ ir_raw:
     service: mqtt.publish
 ```
 
-You can then use these scripts, for the exmple, in a *button card*. Create a new card, put inside it the content of the *card_configuration.yaml*, change *bits:*, *data:*, *protocol:* and *room:* with your desired values and test it. :)
+You can then use these scripts, for example, in a *button card*. Create a new card, put inside it the content of *card_configuration.yaml*, change *bits:*, *data:*, *protocol:* and *room:* with your desired values and test it.
 
 ```yaml
 cards:
