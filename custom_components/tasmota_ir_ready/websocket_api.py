@@ -38,7 +38,7 @@ async def ws_get_entries(
     connection: websocket_api.ActiveConnection,
     msg: dict,
 ) -> None:
-    """Return all tasmota_irhvac config entries with their merged options."""
+    """Return all tasmota_ir_ready config entries with their merged options."""
     entries = [
         _entry_to_dict(entry)
         for entry in hass.config_entries.async_entries(DOMAIN)
@@ -187,7 +187,7 @@ async def ws_delete_entry(
     connection: websocket_api.ActiveConnection,
     msg: dict,
 ) -> None:
-    """Remove a tasmota_irhvac config entry and its associated entity."""
+    """Remove a tasmota_ir_ready config entry and its associated entity."""
     entry = hass.config_entries.async_get_entry(msg["entry_id"])
     if not entry:
         connection.send_error(msg["id"], "not_found", "Config entry not found")
@@ -214,7 +214,7 @@ async def ws_create_entry(
     connection: websocket_api.ActiveConnection,
     msg: dict,
 ) -> None:
-    """Create a new tasmota_irhvac config entry via the import flow."""
+    """Create a new tasmota_ir_ready config entry via the import flow."""
     init_data: dict[str, Any] = {
         "device_type": msg["device_type"],
         "name": msg["name"],

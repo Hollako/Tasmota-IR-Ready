@@ -170,10 +170,10 @@ DEFAULT_IGNORE_OFF_TEMP = False
 ATTR_NAME = "name"
 ATTR_VALUE = "value"
 
-DATA_KEY = "tasmota_irhvac.climate"
-DATA_MEDIA_KEY = "tasmota_irhvac.media_player"
-DATA_REMOTE_KEY = "tasmota_irhvac.remote"
-DOMAIN = "tasmota_irhvac"
+DATA_KEY = "tasmota_ir_ready.climate"
+DATA_MEDIA_KEY = "tasmota_ir_ready.media_player"
+DATA_REMOTE_KEY = "tasmota_ir_ready.remote"
+DOMAIN = "tasmota_ir_ready"
 
 DEVICE_TYPE_CLIMATE = "climate"
 DEVICE_TYPE_MEDIA_PLAYER = "media_player"

@@ -951,10 +951,10 @@ class TasmotaIrhvacPanel extends HTMLElement {
 
   async _loadEntries() {
     try {
-      this._entries = await this._hass.callWS({ type: "tasmota_irhvac/get_entries" });
+      this._entries = await this._hass.callWS({ type: "tasmota_ir_ready/get_entries" });
     } catch (e) {
       this._entries = [];
-      console.error("tasmota_irhvac panel: failed to load entries", e);
+      console.error("tasmota_ir_ready panel: failed to load entries", e);
     }
   }
 
@@ -1042,7 +1042,7 @@ class TasmotaIrhvacPanel extends HTMLElement {
       this._editValues["media_source_mode"] = cycleData ? "cycle" : "direct";
 
       await this._hass.callWS({
-        type: "tasmota_irhvac/save_options",
+        type: "tasmota_ir_ready/save_options",
         entry_id: this._selected.entry_id,
         options: { ...this._editValues },
       });
@@ -1093,7 +1093,7 @@ class TasmotaIrhvacPanel extends HTMLElement {
       btn.textContent = "Deleting…";
       try {
         await this._hass.callWS({
-          type: "tasmota_irhvac/delete_entry",
+          type: "tasmota_ir_ready/delete_entry",
           entry_id: entry.entry_id,
         });
         overlay.remove();
@@ -1226,7 +1226,7 @@ class TasmotaIrhvacPanel extends HTMLElement {
       btn.textContent = "Creating…";
       try {
         const wsMsg = {
-          type: "tasmota_irhvac/create_entry",
+          type: "tasmota_ir_ready/create_entry",
           device_type: deviceType,
           name,
           command_topic: topic,
@@ -1252,7 +1252,7 @@ class TasmotaIrhvacPanel extends HTMLElement {
           initialOptions.state_topic = stateTopic;
         }
         await this._hass.callWS({
-          type: "tasmota_irhvac/save_options",
+          type: "tasmota_ir_ready/save_options",
           entry_id: res.entry_id,
           options: initialOptions,
         });
@@ -1333,7 +1333,7 @@ class TasmotaIrhvacPanel extends HTMLElement {
     this._showLearnOverlay(fieldLabel);
     try {
       const result = await this._hass.callWS({
-        type: "tasmota_irhvac/learn_ir",
+        type: "tasmota_ir_ready/learn_ir",
         topic,
       });
       this._hideLearnOverlay();
@@ -1410,7 +1410,7 @@ class TasmotaIrhvacPanel extends HTMLElement {
     const bits = parseInt(this._getFieldValue("media_bits") || "32", 10);
     try {
       await this._hass.callWS({
-        type: "tasmota_irhvac/send_ir",
+        type: "tasmota_ir_ready/send_ir",
         topic,
         protocol,
         bits,

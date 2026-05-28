@@ -45,7 +45,7 @@ If `Vendor` is not `Unknown` and you see the `IRHVAC` key, the integration can c
 ### Manual
 
 1. Download this repository.
-2. Copy `custom_components/tasmota_irhvac` into your Home Assistant `custom_components` folder.
+2. Copy `custom_components/tasmota_ir_ready` into your Home Assistant `custom_components` folder.
 3. Restart Home Assistant.
 
 ## Setup

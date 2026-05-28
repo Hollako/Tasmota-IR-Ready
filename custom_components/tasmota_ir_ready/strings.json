@@ -1,7 +1,7 @@
 {
   "entity": {
     "climate": {
-      "tasmota_irhvac": {
+      "tasmota_ir_ready": {
         "state_attributes": {
           "fan_mode": {
             "name": "Fan speed"

@@ -1,5 +1,5 @@
 {
-  "domain": "tasmota_irhvac",
+  "domain": "tasmota_ir_ready",
   "name": "Tasmota IR Ready",
   "version": "2026.5.28",
   "documentation": "https://github.com/Hollako/Tasmota-IR-Ready",

@@ -423,7 +423,7 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
     _enable_turn_on_off_backwards_compatibility = False
 
     # Enables entity-level translations (fan speed label, swing mode labels).
-    _attr_translation_key = "tasmota_irhvac"
+    _attr_translation_key = "tasmota_ir_ready"
 
     _last_on_mode: HVACMode | None
 
