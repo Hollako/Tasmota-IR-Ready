@@ -20,7 +20,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "Set up Tasmota IRHVAC",
+        "title": "Set up Tasmota IR Ready",
         "description": "Choose the kind of IR device you want to add.",
         "data": {
           "device_type": "Device Type"
@@ -152,7 +152,7 @@
           "supported_modes": "Select only the modes your AC remote supports",
           "supported_fan_speeds": "Select only the fan speeds your AC remote supports",
           "supported_swing_list": "Select swing options available on your AC. Use fixed positions (Highest/High/…) instead of auto sweep if your AC supports vane positioning",
-          "hvac_model": "Leave at -1 for auto-detect, or enter the model number shown in Tasmota IRHVAC output"
+          "hvac_model": "Leave at -1 for auto-detect, or enter the model number shown in Tasmota IR Ready output"
         },
         "sections": {
           "hvac_modes": {

@@ -1450,7 +1450,7 @@ class TasmotaIrhvacPanel extends HTMLElement {
   _buildHTML() {
     return `
       <div class="topbar">
-        <h1>IR Manager — Tasmota IRHVAC</h1>
+        <h1>Tasmota IR Ready</h1>
         <button id="btn-add" title="Add new IR device">➕ Add</button>
         <button id="btn-refresh" title="Refresh entry list">⟳ Refresh</button>
       </div>

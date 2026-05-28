@@ -1,9 +1,9 @@
 {
   "domain": "tasmota_irhvac",
-  "name": "Tasmota Irhvac",
-  "version": "2026.4.5",
-  "documentation": "https://github.com/hristo-atanasov/Tasmota-IRHVAC",
-  "issue_tracker": "https://github.com/hristo-atanasov/Tasmota-IRHVAC/issues",
+  "name": "Tasmota IR Ready",
+  "version": "2026.5.28",
+  "documentation": "https://github.com/Hollako/Tasmota-IR-Ready",
+  "issue_tracker": "https://github.com/Hollako/Tasmota-IR-Ready/issues",
   "homeassistant": "2024.11.0",
   "config_flow": true,
   "requirements": [],
@@ -12,7 +12,6 @@
     "sensor"
   ],
   "codeowners": [
-    "@hristo-atanasov",
-    "@nao-pon"
+    "@Hollako"
   ]
 }

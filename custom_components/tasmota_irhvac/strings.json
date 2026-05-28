@@ -20,7 +20,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "Set up Tasmota IRHVAC",
+        "title": "Set up Tasmota IR Ready",
         "description": "Choose the kind of IR device you want to add.",
         "data": {
           "device_type": "Device Type"
