@@ -4,15 +4,18 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from pathlib import Path
 from typing import Any
 
 import voluptuous as vol
 from homeassistant.components import mqtt, websocket_api
 from homeassistant.core import HomeAssistant, callback
 
-from .const import DOMAIN
+from .const import CONF_TEMP_SENSOR, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
+
+_BUILTIN_DATABASE_DIR = Path(__file__).parent / "ir_database"
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -20,11 +23,95 @@ _LOGGER = logging.getLogger(__name__)
 
 def _entry_to_dict(entry) -> dict[str, Any]:
     """Flatten a config entry into a single options dict."""
+    options = {**entry.data, **entry.options}
+    if CONF_TEMP_SENSOR not in options and "temp_sensor" in options:
+        options[CONF_TEMP_SENSOR] = options["temp_sensor"]
     return {
         "entry_id": entry.entry_id,
         "title": entry.title,
-        "options": {**entry.data, **entry.options},
+        "options": options,
     }
+
+
+def _database_dirs(hass: HomeAssistant) -> dict[str, Path]:
+    """Return available IR database roots."""
+    return {
+        "builtin": _BUILTIN_DATABASE_DIR,
+        "custom": Path(hass.config.path(DOMAIN, "ir_database")),
+    }
+
+
+def _safe_database_path(root: Path, relative_path: str) -> Path:
+    """Resolve a database file path while keeping it inside the database root."""
+    path = (root / relative_path).resolve()
+    root = root.resolve()
+    if path.suffix.lower() != ".json" or root not in path.parents:
+        raise ValueError("Invalid database path")
+    return path
+
+
+def _profile_label(path: Path, data: dict[str, Any]) -> str:
+    """Build a friendly label for a database profile."""
+    parts = [
+        str(data.get("brand") or "").strip(),
+        str(data.get("model") or "").strip(),
+    ]
+    label = " ".join(part for part in parts if part)
+    return label or str(data.get("title") or path.stem).replace("_", " ")
+
+
+def _list_database_files(root: Path, source: str) -> list[dict[str, Any]]:
+    """List JSON IR profiles below one database root."""
+    if source == "custom":
+        root.mkdir(parents=True, exist_ok=True)
+    if not root.exists():
+        return []
+
+    profiles: list[dict[str, Any]] = []
+    for path in sorted(root.rglob("*.json")):
+        if not path.is_file():
+            continue
+        relative_path = path.relative_to(root).as_posix()
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            _LOGGER.warning("Skipping invalid IR database profile %s: %s", path, exc)
+            continue
+        options = data.get("options") if isinstance(data.get("options"), dict) else data
+        profiles.append({
+            "source": source,
+            "path": relative_path,
+            "label": _profile_label(path, data),
+            "device_type": options.get("device_type", data.get("device_type", "")),
+            "brand": data.get("brand", ""),
+            "model": data.get("model", ""),
+        })
+    return profiles
+
+
+def _load_database_file(root: Path, relative_path: str) -> dict[str, Any]:
+    """Load one IR database profile."""
+    path = _safe_database_path(root, relative_path)
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _slugify_filename(value: str) -> str:
+    """Return a conservative JSON filename for a database profile."""
+    slug = "".join(ch.lower() if ch.isalnum() else "_" for ch in value).strip("_")
+    slug = "_".join(part for part in slug.split("_") if part)
+    return f"{slug or 'ir_profile'}.json"
+
+
+def _save_database_file(root: Path, filename: str, data: dict[str, Any]) -> str:
+    """Save a profile into the custom IR database folder."""
+    root.mkdir(parents=True, exist_ok=True)
+    path = _safe_database_path(root, filename)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(data, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    return path.relative_to(root).as_posix()
 
 
 # ---------------------------------------------------------------------------
@@ -44,6 +131,97 @@ async def ws_get_entries(
         for entry in hass.config_entries.async_entries(DOMAIN)
     ]
     connection.send_result(msg["id"], entries)
+
+
+# ---------------------------------------------------------------------------
+# IR database templates
+# ---------------------------------------------------------------------------
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/list_ir_database"})
+@websocket_api.async_response
+async def ws_list_ir_database(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict,
+) -> None:
+    """Return available IR database profiles."""
+    roots = _database_dirs(hass)
+    profiles: list[dict[str, Any]] = []
+    for source, root in roots.items():
+        profiles.extend(await hass.async_add_executor_job(
+            _list_database_files, root, source
+        ))
+    connection.send_result(msg["id"], profiles)
+
+
+@websocket_api.websocket_command({
+    vol.Required("type"): f"{DOMAIN}/load_ir_database",
+    vol.Required("source"): str,
+    vol.Required("path"): str,
+})
+@websocket_api.async_response
+async def ws_load_ir_database(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict,
+) -> None:
+    """Load one IR database profile."""
+    roots = _database_dirs(hass)
+    root = roots.get(msg["source"])
+    if root is None:
+        connection.send_error(msg["id"], "invalid_source", "Invalid database source")
+        return
+    try:
+        data = await hass.async_add_executor_job(
+            _load_database_file, root, msg["path"]
+        )
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        connection.send_error(msg["id"], "load_failed", str(exc))
+        return
+    connection.send_result(msg["id"], data)
+
+
+@websocket_api.websocket_command({
+    vol.Required("type"): f"{DOMAIN}/save_ir_database",
+    vol.Required("title"): str,
+    vol.Required("options"): dict,
+    vol.Optional("filename"): str,
+    vol.Optional("brand"): str,
+    vol.Optional("model"): str,
+})
+@websocket_api.async_response
+async def ws_save_ir_database(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict,
+) -> None:
+    """Save the current editor values as a custom IR database profile."""
+    title = msg["title"].strip() or "IR Profile"
+    filename = (msg.get("filename") or title).strip()
+    if not filename.lower().endswith(".json"):
+        filename = _slugify_filename(filename)
+
+    data = {
+        "title": title,
+        "brand": (msg.get("brand") or "").strip(),
+        "model": (msg.get("model") or "").strip(),
+        "options": dict(msg["options"]),
+    }
+    try:
+        relative_path = await hass.async_add_executor_job(
+            _save_database_file,
+            _database_dirs(hass)["custom"],
+            filename,
+            data,
+        )
+    except (OSError, ValueError) as exc:
+        connection.send_error(msg["id"], "save_failed", str(exc))
+        return
+    connection.send_result(msg["id"], {
+        "success": True,
+        "source": "custom",
+        "path": relative_path,
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -68,6 +246,8 @@ async def ws_save_options(
         return
 
     new_opts: dict[str, Any] = dict(msg["options"])
+    if "temp_sensor" in new_opts:
+        new_opts.setdefault(CONF_TEMP_SENSOR, new_opts.pop("temp_sensor"))
 
     # Coerce numeric fields that arrive as strings from the panel
     for key in ("media_bits",):
@@ -214,7 +394,7 @@ async def ws_create_entry(
     connection: websocket_api.ActiveConnection,
     msg: dict,
 ) -> None:
-    """Create a new tasmota_ir_ready config entry via the import flow."""
+    """Create a new tasmota_ir_ready config entry from the panel."""
     init_data: dict[str, Any] = {
         "device_type": msg["device_type"],
         "name": msg["name"],
@@ -254,6 +434,9 @@ async def ws_create_entry(
 def async_register_websocket_commands(hass: HomeAssistant) -> None:
     """Register all WebSocket commands used by the panel."""
     websocket_api.async_register_command(hass, ws_get_entries)
+    websocket_api.async_register_command(hass, ws_list_ir_database)
+    websocket_api.async_register_command(hass, ws_load_ir_database)
+    websocket_api.async_register_command(hass, ws_save_ir_database)
     websocket_api.async_register_command(hass, ws_save_options)
     websocket_api.async_register_command(hass, ws_learn_ir)
     websocket_api.async_register_command(hass, ws_send_ir)

@@ -220,6 +220,10 @@
           "media_stop_data": "Stop Hex Data (optional)",
           "media_next_data": "Next Hex Data (optional)",
           "media_previous_data": "Previous Hex Data (optional)",
+          "media_fast_forward_data": "Fast Forward Hex Data (optional)",
+          "media_rewind_data": "Rewind Hex Data (optional)",
+          "media_channel_up_data": "Channel Up Hex Data (optional)",
+          "media_channel_down_data": "Channel Down Hex Data (optional)",
           "media_source_mode": "Source Selection Mode",
           "media_source_cycle_data": "Source Cycle Button Hex Data",
           "media_source_cycle_delay": "Delay Between Cycle Presses (seconds)",
@@ -271,7 +275,11 @@
               "media_play_pause_data": "Play/Pause",
               "media_stop_data": "Stop",
               "media_next_data": "Next",
-              "media_previous_data": "Previous"
+              "media_previous_data": "Previous",
+              "media_fast_forward_data": "Fast Forward",
+              "media_rewind_data": "Rewind",
+              "media_channel_up_data": "Channel Up",
+              "media_channel_down_data": "Channel Down"
             }
           },
           "media_sources": {
@@ -330,6 +338,7 @@
           "remote_back_data": "Back Hex Data",
           "remote_home_data": "Home Hex Data",
           "remote_menu_data": "Menu Hex Data",
+          "remote_settings_data": "Settings Hex Data",
           "remote_info_data": "Info Hex Data",
           "remote_exit_data": "Exit Hex Data",
           "remote_channel_up_data": "Channel Up Hex Data",
@@ -398,6 +407,7 @@
               "remote_back_data": "Back",
               "remote_home_data": "Home",
               "remote_menu_data": "Menu",
+              "remote_settings_data": "Settings",
               "remote_info_data": "Info",
               "remote_exit_data": "Exit"
             }

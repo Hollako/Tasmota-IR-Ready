@@ -162,7 +162,7 @@ const SECTIONS = {
         f("state_topic_2", "MQTT State Topic 2 (optional)"),
         f("availability_topic", "Availability Topic (optional)"),
         n("mqtt_delay", "MQTT Delay (s)", 0, 10, 0.1, "s"),
-        ent("temp_sensor", "Temperature Sensor", "sensor"),
+        ent("temperature_sensor", "Temperature Sensor", "sensor"),
         ent("humidity_sensor", "Humidity Sensor", "sensor"),
         ent("power_sensor", "Power Sensor", "binary_sensor"),
       ],
@@ -225,13 +225,16 @@ const SECTIONS = {
         ir("media_volume_up_data", "Volume Up"),
         ir("media_volume_down_data", "Volume Down"),
         ir("media_mute_data", "Mute"),
-        ir("media_next_data", "Next / Channel Up"),
-        ir("media_prev_data", "Previous / Channel Down"),
+        ir("media_next_data", "Next"),
+        ir("media_previous_data", "Previous"),
+        ir("media_channel_up_data", "Channel Up"),
+        ir("media_channel_down_data", "Channel Down"),
         ir("media_play_data", "Play"),
         ir("media_pause_data", "Pause"),
+        ir("media_play_pause_data", "Play / Pause"),
         ir("media_stop_data", "Stop"),
-        ir("media_ff_data", "Fast Forward"),
-        ir("media_rw_data", "Rewind"),
+        ir("media_fast_forward_data", "Fast Forward"),
+        ir("media_rewind_data", "Rewind"),
       ],
     },
     {
@@ -298,6 +301,7 @@ const SECTIONS = {
         ir("remote_back_data", "Back"),
         ir("remote_home_data", "Home"),
         ir("remote_menu_data", "Menu"),
+        ir("remote_settings_data", "Settings"),
         ir("remote_info_data", "Info"),
         ir("remote_exit_data", "Exit"),
       ],
@@ -411,7 +415,7 @@ const CSS = `
 .topbar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   padding: 0 16px;
   height: 56px;
   background: var(--app-header-background-color, var(--primary-color, #03a9f4));
@@ -420,6 +424,18 @@ const CSS = `
   flex-shrink: 0;
 }
 .topbar h1 { margin: 0; font-size: 1.1rem; font-weight: 500; flex: 1; }
+.menu-button {
+  color: inherit;
+  flex: 0 0 auto;
+  margin-left: -8px;
+}
+.menu-fallback {
+  width: 40px;
+  height: 40px;
+  padding: 8px;
+  font-size: 1.4rem;
+  line-height: 1;
+}
 .topbar button {
   background: rgba(255,255,255,.15);
   border: none; border-radius: 4px;
@@ -929,6 +945,7 @@ class TasmotaIrhvacPanel extends HTMLElement {
     this._activeTab = null;
     this._statusTimer = null;
     this._learning = false; // currently showing learn overlay?
+    this._narrow = false;
   }
 
   set hass(hass) {
@@ -937,6 +954,12 @@ class TasmotaIrhvacPanel extends HTMLElement {
       this._booted = true;
       this._boot();
     }
+  }
+
+  set narrow(narrow) {
+    this._narrow = narrow;
+    const menuButton = this._shadow.querySelector(".menu-button");
+    if (menuButton) menuButton.narrow = narrow;
   }
 
   // -----------------------------------------------------------------------
@@ -1110,26 +1133,6 @@ class TasmotaIrhvacPanel extends HTMLElement {
     });
   }
 
-  // -----------------------------------------------------------------------
-  // Export / Import
-  // -----------------------------------------------------------------------
-
-  _exportEntry() {
-    if (!this._selected) return;
-    const data = JSON.stringify(
-      { title: this._selected.title, options: this._editValues },
-      null, 2
-    );
-    const blob = new Blob([data], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${this._selected.title.replace(/\s+/g, "_")}_ir.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    this._showStatus("ok", "Exported.");
-  }
-
   _openAddDialog() {
     const overlay = document.createElement("div");
     overlay.className = "modal-overlay";
@@ -1271,52 +1274,183 @@ class TasmotaIrhvacPanel extends HTMLElement {
     });
   }
 
-  _openImportDialog() {
+  async _openDatabaseDialog() {
+    if (!this._selected) return;
+
     const overlay = document.createElement("div");
     overlay.className = "modal-overlay";
     overlay.innerHTML = `
       <div class="modal">
-        <h3>Import IR Config</h3>
+        <h3>IR Database</h3>
         <p style="margin:0;font-size:.85rem;color:var(--secondary-text-color,#666)">
-          Paste JSON exported from another entry, or load a file.
+          Load a saved IR profile into this device, then review and Save.
         </p>
-        <textarea id="import-ta" placeholder='{"title":"...","options":{...}}'></textarea>
-        <input type="file" id="import-file" accept=".json" style="font-size:.85rem">
+        <div class="custom-select" id="db-select-wrap" style="width:100%">
+          <input type="hidden" id="db-select" value="">
+          <div class="custom-select-trigger" tabindex="0" id="db-select-trigger">
+            <span class="custom-select-label">Loading profiles...</span>
+            <span class="custom-select-arrow">▾</span>
+          </div>
+          <div class="custom-select-dropdown" hidden id="db-select-dropdown"></div>
+        </div>
         <div class="modal-actions">
-          <button class="btn btn-secondary" id="import-cancel">Cancel</button>
-          <button class="btn btn-primary" id="import-ok">Apply</button>
+          <button class="btn btn-secondary" id="db-cancel">Cancel</button>
+          <button class="btn btn-primary" id="db-load" disabled>Load</button>
         </div>
       </div>`;
     this._shadow.appendChild(overlay);
 
-    overlay.querySelector("#import-file").addEventListener("change", e => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = ev => { overlay.querySelector("#import-ta").value = ev.target.result; };
-      reader.readAsText(file);
+    const select = overlay.querySelector("#db-select");
+    const selectTrigger = overlay.querySelector("#db-select-trigger");
+    const selectLabel = selectTrigger.querySelector(".custom-select-label");
+    const selectDropdown = overlay.querySelector("#db-select-dropdown");
+    const loadButton = overlay.querySelector("#db-load");
+    const selectedType = this._selected.options?.device_type || this._editValues.device_type || "climate";
+    let profiles = [];
+
+    try {
+      const allProfiles = await this._hass.callWS({ type: "tasmota_ir_ready/list_ir_database" });
+      profiles = allProfiles.filter(profile => !profile.device_type || profile.device_type === selectedType);
+      if (!profiles.length) {
+        selectLabel.textContent = `No ${selectedType.replace("_", " ")} profiles found`;
+        selectDropdown.innerHTML = "";
+      } else {
+        select.value = "0";
+        selectDropdown.innerHTML = profiles.map((profile, index) => {
+          const source = profile.source === "custom" ? "Custom" : "Built-in";
+          const detail = profile.brand || profile.model
+            ? ` (${[profile.brand, profile.model].filter(Boolean).join(" ")})`
+            : "";
+          const selected = index === 0 ? " selected" : "";
+          return `<div class="custom-select-option${selected}" data-value="${index}">${source}: ${this._escHtml(profile.label)}${this._escHtml(detail)}</div>`;
+        }).join("");
+        selectLabel.textContent = selectDropdown.querySelector(".custom-select-option.selected")?.textContent || "Select profile";
+        loadButton.disabled = false;
+      }
+    } catch (e) {
+      selectLabel.textContent = "Unable to load profiles";
+      selectDropdown.innerHTML = "";
+      this._showStatus("err", `Database list failed: ${e.message || e}`);
+    }
+
+    overlay.querySelector("#db-cancel").addEventListener("click", () => overlay.remove());
+    selectTrigger.addEventListener("click", e => {
+      e.stopPropagation();
+      if (!profiles.length) return;
+      selectDropdown.hidden = !selectDropdown.hidden;
     });
-    overlay.querySelector("#import-cancel").addEventListener("click", () => overlay.remove());
-    overlay.querySelector("#import-ok").addEventListener("click", () => {
-      this._doImport(overlay.querySelector("#import-ta").value);
-      overlay.remove();
+    selectDropdown.addEventListener("click", e => {
+      e.stopPropagation();
+      const option = e.target.closest(".custom-select-option");
+      if (!option) return;
+      select.value = option.dataset.value;
+      selectLabel.textContent = option.textContent;
+      selectDropdown.querySelectorAll(".custom-select-option").forEach(el => el.classList.remove("selected"));
+      option.classList.add("selected");
+      selectDropdown.hidden = true;
+    });
+    overlay.addEventListener("click", () => {
+      selectDropdown.hidden = true;
+    });
+    loadButton.addEventListener("click", async () => {
+      const profile = profiles[Number(select.value)];
+      if (!profile) return;
+      loadButton.disabled = true;
+      loadButton.textContent = "Loading...";
+      try {
+        const data = await this._hass.callWS({
+          type: "tasmota_ir_ready/load_ir_database",
+          source: profile.source,
+          path: profile.path,
+        });
+        overlay.remove();
+        this._applyProfile(data, "Database profile loaded - review and Save to apply.");
+      } catch (e) {
+        overlay.remove();
+        this._showStatus("err", `Database load failed: ${e.message || e}`);
+      }
     });
   }
 
-  _doImport(raw) {
-    try {
-      const parsed = JSON.parse(raw);
-      const opts = parsed.options || parsed;
-      // Merge into current edit values, skip entry-level keys
-      const SKIP = ["entry_id", "title"];
-      for (const [k, v] of Object.entries(opts)) {
-        if (!SKIP.includes(k)) this._editValues[k] = v;
-      }
-      this._render();
-      this._showStatus("ok", "Imported — review and Save to apply.");
-    } catch (e) {
-      this._showStatus("err", `Import failed: invalid JSON (${e.message})`);
+  _applyProfile(profile, statusText) {
+    const opts = profile.options || profile;
+    const skip = ["entry_id", "title"];
+    for (const [key, value] of Object.entries(opts)) {
+      if (!skip.includes(key)) this._editValues[key] = value;
     }
+    this._render();
+    this._showStatus("ok", statusText);
+  }
+
+  _openAddToDatabaseDialog() {
+    if (!this._selected) return;
+    this._snapshotFields();
+
+    const title = this._selected.title || this._getFieldValue("name") || "IR Profile";
+    const brand = this._getFieldValue("vendor") || "";
+    const model = this._getFieldValue("model") || "";
+    const filename = `${title.replace(/\s+/g, "_")}_ir.json`;
+
+    const overlay = document.createElement("div");
+    overlay.className = "modal-overlay";
+    overlay.innerHTML = `
+      <div class="modal">
+        <h3>Add to Database</h3>
+        <p style="margin:0;font-size:.85rem;color:var(--secondary-text-color,#666)">
+          Save this device's current editor values to the local IR database.
+        </p>
+        <div class="field-row">
+          <span class="field-label">Profile Title</span>
+          <input type="text" class="field-input" id="db-title" value="${this._escHtml(title)}" autocomplete="off">
+        </div>
+        <div class="field-row">
+          <span class="field-label">Brand</span>
+          <input type="text" class="field-input" id="db-brand" value="${this._escHtml(brand)}" autocomplete="off">
+        </div>
+        <div class="field-row">
+          <span class="field-label">Model</span>
+          <input type="text" class="field-input" id="db-model" value="${this._escHtml(model)}" autocomplete="off">
+        </div>
+        <div class="field-row">
+          <span class="field-label">Filename</span>
+          <input type="text" class="field-input" id="db-filename" value="${this._escHtml(filename)}" autocomplete="off">
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" id="db-save-cancel">Cancel</button>
+          <button class="btn btn-primary" id="db-save-ok">Save Profile</button>
+        </div>
+      </div>`;
+    this._shadow.appendChild(overlay);
+    overlay.querySelector("#db-title").focus();
+
+    overlay.querySelector("#db-save-cancel").addEventListener("click", () => overlay.remove());
+    overlay.querySelector("#db-save-ok").addEventListener("click", async () => {
+      const button = overlay.querySelector("#db-save-ok");
+      const profileTitle = overlay.querySelector("#db-title").value.trim();
+      const profileFilename = overlay.querySelector("#db-filename").value.trim();
+      if (!profileTitle) {
+        overlay.querySelector("#db-title").focus();
+        return;
+      }
+
+      button.disabled = true;
+      button.textContent = "Saving...";
+      try {
+        const result = await this._hass.callWS({
+          type: "tasmota_ir_ready/save_ir_database",
+          title: profileTitle,
+          brand: overlay.querySelector("#db-brand").value.trim(),
+          model: overlay.querySelector("#db-model").value.trim(),
+          filename: profileFilename,
+          options: { ...this._editValues },
+        });
+        overlay.remove();
+        this._showStatus("ok", `Saved database profile: ${result.path}`);
+      } catch (e) {
+        overlay.remove();
+        this._showStatus("err", `Database save failed: ${e.message || e}`);
+      }
+    });
   }
 
   // -----------------------------------------------------------------------
@@ -1450,6 +1584,7 @@ class TasmotaIrhvacPanel extends HTMLElement {
   _buildHTML() {
     return `
       <div class="topbar">
+        ${this._buildMenuButton()}
         <h1>Tasmota IR Ready</h1>
         <button id="btn-add" title="Add new IR device">➕ Add</button>
         <button id="btn-refresh" title="Refresh entry list">⟳ Refresh</button>
@@ -1462,6 +1597,13 @@ class TasmotaIrhvacPanel extends HTMLElement {
       </div>
       <div class="statusbar status-info"></div>
     `;
+  }
+
+  _buildMenuButton() {
+    if (customElements.get("ha-menu-button")) {
+      return `<ha-menu-button class="menu-button"></ha-menu-button>`;
+    }
+    return `<button class="menu-fallback" id="btn-ha-menu" title="Open Home Assistant sidebar" aria-label="Open Home Assistant sidebar">☰</button>`;
   }
 
   _buildSidebar() {
@@ -1521,8 +1663,8 @@ class TasmotaIrhvacPanel extends HTMLElement {
     return `
       <div class="entry-toolbar">
         <h2>${this._selected.title}</h2>
-        <button class="btn btn-secondary" id="btn-import">⬆ Import</button>
-        <button class="btn btn-secondary" id="btn-export">⬇ Export</button>
+        <button class="btn btn-secondary" id="btn-database">IR Database</button>
+        <button class="btn btn-secondary" id="btn-add-database">Add to database</button>
         <button class="btn btn-danger" id="btn-delete" title="Delete this device">🗑 Delete</button>
         <button class="btn btn-primary" id="btn-save">💾 Save</button>
       </div>
@@ -1573,13 +1715,14 @@ class TasmotaIrhvacPanel extends HTMLElement {
     }
 
     if (field.type === "select") {
-      const selectedOpt = field.options.find(o => o.value === value) || field.options[0];
+      const valueStr = String(value ?? "");
+      const selectedOpt = field.options.find(o => String(o.value) === valueStr) || field.options[0];
       const optionsHtml = field.options.map(o =>
-        `<div class="custom-select-option${o.value === value ? " selected" : ""}" data-value="${o.value}">${o.label}</div>`
+        `<div class="custom-select-option${String(o.value) === valueStr ? " selected" : ""}" data-value="${o.value}">${o.label}</div>`
       ).join("");
       inputHtml = `
         <div class="custom-select" data-select-key="${field.key}">
-          <input type="hidden" data-key="${field.key}" value="${this._escHtml(value)}">
+          <input type="hidden" data-key="${field.key}" value="${this._escHtml(valueStr)}">
           <div class="custom-select-trigger" tabindex="0">
             <span class="custom-select-label">${selectedOpt ? selectedOpt.label : ""}</span>
             <span class="custom-select-arrow">▾</span>
@@ -1670,6 +1813,18 @@ class TasmotaIrhvacPanel extends HTMLElement {
   _attachListeners() {
     const root = this._shadow;
 
+    const menuButton = root.querySelector(".menu-button");
+    if (menuButton) {
+      menuButton.hass = this._hass;
+      menuButton.narrow = this._narrow;
+    }
+    root.getElementById("btn-ha-menu")?.addEventListener("click", () => {
+      this.dispatchEvent(new CustomEvent("hass-toggle-menu", {
+        bubbles: true,
+        composed: true,
+      }));
+    });
+
     // Add
     root.getElementById("btn-add")?.addEventListener("click", () => this._openAddDialog());
 
@@ -1710,14 +1865,9 @@ class TasmotaIrhvacPanel extends HTMLElement {
     // Delete
     root.getElementById("btn-delete")?.addEventListener("click", () => this._deleteEntry());
 
-    // Export
-    root.getElementById("btn-export")?.addEventListener("click", () => {
-      this._snapshotFields();
-      this._exportEntry();
-    });
-
-    // Import
-    root.getElementById("btn-import")?.addEventListener("click", () => this._openImportDialog());
+    // IR database
+    root.getElementById("btn-database")?.addEventListener("click", () => this._openDatabaseDialog());
+    root.getElementById("btn-add-database")?.addEventListener("click", () => this._openAddToDatabaseDialog());
 
     // Field changes (live snapshot for text/number fields)
     root.querySelectorAll("[data-key]").forEach(el => {

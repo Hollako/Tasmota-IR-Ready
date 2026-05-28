@@ -23,6 +23,9 @@ from .const import (
     CONF_AVAILABILITY_TOPIC,
     CONF_COMMAND_TOPIC,
     CONF_MEDIA_BITS,
+    CONF_MEDIA_CHANNEL_DOWN_DATA,
+    CONF_MEDIA_CHANNEL_UP_DATA,
+    CONF_MEDIA_FAST_FORWARD_DATA,
     CONF_MEDIA_MUTE_DATA,
     CONF_MEDIA_NEXT_DATA,
     CONF_MEDIA_PAUSE_DATA,
@@ -33,6 +36,7 @@ from .const import (
     CONF_MEDIA_POWER_ON_DATA,
     CONF_MEDIA_PREVIOUS_DATA,
     CONF_MEDIA_PROTOCOL,
+    CONF_MEDIA_REWIND_DATA,
     CONF_MEDIA_SOURCE_1_DATA,
     CONF_MEDIA_SOURCE_1_NAME,
     CONF_MEDIA_SOURCE_2_DATA,
@@ -126,6 +130,10 @@ class TasmotaIrMediaPlayer(RestoreEntity, MediaPlayerEntity):
             CONF_MEDIA_STOP_DATA: config.get(CONF_MEDIA_STOP_DATA) or "",
             CONF_MEDIA_NEXT_DATA: config.get(CONF_MEDIA_NEXT_DATA) or "",
             CONF_MEDIA_PREVIOUS_DATA: config.get(CONF_MEDIA_PREVIOUS_DATA) or "",
+            CONF_MEDIA_FAST_FORWARD_DATA: config.get(CONF_MEDIA_FAST_FORWARD_DATA) or "",
+            CONF_MEDIA_REWIND_DATA: config.get(CONF_MEDIA_REWIND_DATA) or "",
+            CONF_MEDIA_CHANNEL_UP_DATA: config.get(CONF_MEDIA_CHANNEL_UP_DATA) or "",
+            CONF_MEDIA_CHANNEL_DOWN_DATA: config.get(CONF_MEDIA_CHANNEL_DOWN_DATA) or "",
         }
 
         # Source mode setup
@@ -179,10 +187,14 @@ class TasmotaIrMediaPlayer(RestoreEntity, MediaPlayerEntity):
             features |= MediaPlayerEntityFeature.PAUSE
         if self._commands[CONF_MEDIA_STOP_DATA]:
             features |= MediaPlayerEntityFeature.STOP
-        if self._commands[CONF_MEDIA_NEXT_DATA]:
+        if self._command(CONF_MEDIA_NEXT_DATA, CONF_MEDIA_CHANNEL_UP_DATA):
             features |= MediaPlayerEntityFeature.NEXT_TRACK
-        if self._commands[CONF_MEDIA_PREVIOUS_DATA]:
+        if self._command(CONF_MEDIA_PREVIOUS_DATA, CONF_MEDIA_CHANNEL_DOWN_DATA):
             features |= MediaPlayerEntityFeature.PREVIOUS_TRACK
+        if self._commands[CONF_MEDIA_FAST_FORWARD_DATA]:
+            features |= MediaPlayerEntityFeature.SEEK
+        if self._commands[CONF_MEDIA_REWIND_DATA]:
+            features |= MediaPlayerEntityFeature.SEEK
         if self._attr_source_list:
             features |= MediaPlayerEntityFeature.SELECT_SOURCE
         self._attr_supported_features = features
@@ -412,12 +424,36 @@ class TasmotaIrMediaPlayer(RestoreEntity, MediaPlayerEntity):
         self.async_write_ha_state()
 
     async def async_media_next_track(self) -> None:
-        """Send the next-track IR command."""
-        await self._async_publish_command(self._commands[CONF_MEDIA_NEXT_DATA])
+        """Send the next-track or channel-up IR command."""
+        await self._async_publish_command(
+            self._command(CONF_MEDIA_NEXT_DATA, CONF_MEDIA_CHANNEL_UP_DATA)
+        )
 
     async def async_media_previous_track(self) -> None:
-        """Send the previous-track IR command."""
-        await self._async_publish_command(self._commands[CONF_MEDIA_PREVIOUS_DATA])
+        """Send the previous-track or channel-down IR command."""
+        await self._async_publish_command(
+            self._command(CONF_MEDIA_PREVIOUS_DATA, CONF_MEDIA_CHANNEL_DOWN_DATA)
+        )
+
+    async def async_media_seek(self, position: float) -> None:
+        """Send a stateless seek IR command.
+
+        Home Assistant's media_player seek service requires a position, but IR
+        devices usually expose only fast-forward/rewind buttons. Treat positive
+        positions as fast-forward and zero/negative positions as rewind.
+        """
+        if position > 0:
+            await self._async_publish_command(self._commands[CONF_MEDIA_FAST_FORWARD_DATA])
+        else:
+            await self._async_publish_command(self._commands[CONF_MEDIA_REWIND_DATA])
+
+    async def async_media_channel_up(self) -> None:
+        """Send the channel-up IR command."""
+        await self._async_publish_command(self._commands[CONF_MEDIA_CHANNEL_UP_DATA])
+
+    async def async_media_channel_down(self) -> None:
+        """Send the channel-down IR command."""
+        await self._async_publish_command(self._commands[CONF_MEDIA_CHANNEL_DOWN_DATA])
 
     # ------------------------------------------------------------------
     # Source selection
