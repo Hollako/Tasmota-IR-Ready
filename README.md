@@ -15,13 +15,13 @@ Home Assistant integration for controlling IR devices via Tasmota-compatible IR 
 Use a Tasmota-compatible IR transmitter/receiver device that supports the `IRHVAC` and `IRSend` commands.
 
 <p align="center">
-  <img src="/images/tasmota_homeassistant_irhub.png" alt="Tasmota IR with Home Assistant" width="480">
+  <img src="https://raw.githubusercontent.com/Hollako/Tasmota-IR-Ready/master/images/tasmota_homeassistant_irhub.png" alt="Tasmota IR with Home Assistant" width="480">
 </p>
 
 Tasmota configuration looks like this:
 
 <p align="center">
-  <img src="/images/tasmota_config.jpeg" alt="Tasmota configuration" width="360">
+  <img src="https://raw.githubusercontent.com/Hollako/Tasmota-IR-Ready/master/images/tasmota_config.jpeg" alt="Tasmota configuration" width="360">
 </p>
 
 After configuring Tasmota, open the Tasmota console, point your AC remote at the IR receiver, and press a button.
