@@ -1,6 +1,6 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
 
-# Tasmota-IRHVAC
+# Tasmota-IR-Ready
 
 Home Assistant integration for controlling IR air conditioners with the Tasmota `IRHVAC` command and compatible IR transceiver hardware.
 
@@ -35,7 +35,7 @@ If `Vendor` is not `Unknown` and you see the `IRHVAC` key, the integration shoul
 ### HACS
 
 1. Add this repository as a custom HACS integration repository.
-2. Install `Tasmota-IRHVAC` from HACS.
+2. Install `Tasmota-IR-Ready` from HACS.
 3. Restart Home Assistant.
 
 ### Manual

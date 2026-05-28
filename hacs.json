@@ -1,5 +1,5 @@
 {
-  "name": "Tasmota-IRHVAC",
+  "name": "Tasmota-IR-Ready",
   "render_readme": true,
   "homeassistant": "2026.5.0"
 }
