@@ -21,6 +21,13 @@
     "step": {
       "user": {
         "title": "Set up Tasmota IRHVAC",
+        "description": "Choose the kind of IR device you want to add.",
+        "data": {
+          "device_type": "Device Type"
+        }
+      },
+      "climate": {
+        "title": "Set up IR Climate",
         "description": "Enter the minimum details to connect to your AC. All other settings can be configured afterwards via the **Configure** button.",
         "data": {
           "name": "Name",
@@ -32,6 +39,69 @@
           "vendor": "The IRHVAC vendor string, e.g. ELECTRA_AC, MITSUBISHI_AC, SAMSUNG_AC …",
           "command_topic": "Topic to publish IR commands to, e.g. cmnd/tasmota_ir/IRHVAC",
           "state_topic": "Topic to subscribe for AC state updates, e.g. tele/tasmota_ir/RESULT"
+        }
+      },
+      "media_player": {
+        "title": "Set up IR Media Player",
+        "description": "Enter the Tasmota IRSend topic, IR protocol, bit count, and the hex data for each remote button.",
+        "data": {
+          "name": "Name",
+          "command_topic": "MQTT IRSend Command Topic",
+          "availability_topic": "Availability Topic (optional)",
+          "learn_topic": "IR Receive Topic (for Learning, optional)",
+          "media_protocol": "IR Protocol",
+          "media_bits": "Bits",
+          "media_power_data": "Power Toggle Hex Data (optional)",
+          "media_power_on_data": "Power On Hex Data (optional)",
+          "media_power_off_data": "Power Off Hex Data (optional)",
+          "media_volume_up_data": "Volume Up Hex Data (optional)",
+          "media_volume_down_data": "Volume Down Hex Data (optional)",
+          "media_mute_data": "Mute Hex Data (optional)",
+          "media_play_pause_data": "Play/Pause Hex Data (optional)",
+          "media_next_data": "Next Hex Data (optional)",
+          "media_previous_data": "Previous Hex Data (optional)",
+          "media_source_1_name": "Source 1 Name (optional)",
+          "media_source_1_data": "Source 1 Hex Data (optional)",
+          "media_source_2_name": "Source 2 Name (optional)",
+          "media_source_2_data": "Source 2 Hex Data (optional)",
+          "media_source_3_name": "Source 3 Name (optional)",
+          "media_source_3_data": "Source 3 Hex Data (optional)"
+        },
+        "data_description": {
+          "command_topic": "Topic to publish IRSend commands to, e.g. cmnd/tasmota_ir/IRSend",
+          "media_protocol": "The protocol reported by Tasmota when decoding the remote, e.g. NEC, SONY, SAMSUNG.",
+          "media_bits": "The bit length reported by Tasmota for this remote code.",
+          "media_power_data": "Only the hex Data value, e.g. 0x20DF10EF. The integration builds the full IRSend JSON payload.",
+          "media_power_on_data": "Only the hex Data value for discrete power on.",
+          "media_power_off_data": "Only the hex Data value for discrete power off."
+        }
+      },
+      "remote": {
+        "title": "Set up IR Remote",
+        "description": "Enter the Tasmota IRSend topic, IR protocol, bit count, and initial remote button hex data.",
+        "data": {
+          "name": "Name",
+          "command_topic": "MQTT IRSend Command Topic",
+          "availability_topic": "Availability Topic (optional)",
+          "learn_topic": "IR Receive Topic (for Learning, optional)",
+          "media_protocol": "IR Protocol",
+          "media_bits": "Bits",
+          "media_power_data": "Power Toggle Hex Data (optional)",
+          "media_power_on_data": "Power On Hex Data (optional)",
+          "media_power_off_data": "Power Off Hex Data (optional)",
+          "media_volume_up_data": "Volume Up Hex Data (optional)",
+          "media_volume_down_data": "Volume Down Hex Data (optional)",
+          "media_mute_data": "Mute Hex Data (optional)",
+          "remote_up_data": "Up Hex Data (optional)",
+          "remote_down_data": "Down Hex Data (optional)",
+          "remote_left_data": "Left Hex Data (optional)",
+          "remote_right_data": "Right Hex Data (optional)",
+          "remote_ok_data": "OK Hex Data (optional)"
+        },
+        "data_description": {
+          "command_topic": "Topic to publish IRSend commands to, e.g. cmnd/tasmota_ir/IRSend",
+          "media_protocol": "The protocol reported by Tasmota when decoding the remote, e.g. NEC, SONY, SAMSUNG.",
+          "media_bits": "The bit length reported by Tasmota for this remote code."
         }
       }
     },
@@ -128,6 +198,247 @@
           "ignore_off_temp": "Do not update the target temperature from MQTT payloads received while the AC is off",
           "special_mode": "HVAC mode to report when the power sensor turns on unexpectedly (e.g. auto-clean)"
         }
+      },
+      "media_player_options": {
+        "title": "Media Player Commands",
+        "data": {
+          "learn_command": "Learn a Command (IR Learning)",
+          "name": "Name",
+          "command_topic": "MQTT IRSend Command Topic",
+          "availability_topic": "Availability Topic (optional)",
+          "media_protocol": "IR Protocol",
+          "media_bits": "Bits",
+          "media_power_data": "Power Toggle Hex Data (optional)",
+          "media_power_on_data": "Power On Hex Data (optional)",
+          "media_power_off_data": "Power Off Hex Data (optional)",
+          "media_volume_up_data": "Volume Up Hex Data (optional)",
+          "media_volume_down_data": "Volume Down Hex Data (optional)",
+          "media_mute_data": "Mute Hex Data (optional)",
+          "media_play_data": "Play Hex Data (optional)",
+          "media_pause_data": "Pause Hex Data (optional)",
+          "media_play_pause_data": "Play/Pause Hex Data (optional)",
+          "media_stop_data": "Stop Hex Data (optional)",
+          "media_next_data": "Next Hex Data (optional)",
+          "media_previous_data": "Previous Hex Data (optional)",
+          "media_source_mode": "Source Selection Mode",
+          "media_source_cycle_data": "Source Cycle Button Hex Data",
+          "media_source_cycle_delay": "Delay Between Cycle Presses (seconds)",
+          "media_source_1_name": "Source 1 Name",
+          "media_source_1_data": "Source 1 Hex Data",
+          "media_source_2_name": "Source 2 Name",
+          "media_source_2_data": "Source 2 Hex Data",
+          "media_source_3_name": "Source 3 Name",
+          "media_source_3_data": "Source 3 Hex Data",
+          "media_source_4_name": "Source 4 Name",
+          "media_source_4_data": "Source 4 Hex Data",
+          "media_source_5_name": "Source 5 Name",
+          "media_source_5_data": "Source 5 Hex Data",
+          "media_source_6_name": "Source 6 Name",
+          "media_source_6_data": "Source 6 Hex Data"
+        },
+        "data_description": {
+          "learn_command": "Select a command and click Submit to enter IR learning mode. The integration will subscribe to your Tasmota RESULT topic and fill the hex value when a button is pressed (30 s timeout).",
+          "command_topic": "Topic to publish IRSend commands to, e.g. cmnd/tasmota_ir/IRSend",
+          "availability_topic": "Leave blank to auto-derive from the command topic, e.g. tele/tasmota_ir/LWT",
+          "learn_topic": "MQTT topic Tasmota publishes IR received data to, e.g. tele/tasmota_ir/RESULT",
+          "media_protocol": "The protocol reported by Tasmota when decoding the remote, e.g. NEC, SONY, SAMSUNG.",
+          "media_bits": "The bit length reported by Tasmota for this remote code.",
+          "media_power_data": "Only the hex Data value, e.g. 0x20DF10EF. The integration builds the full IRSend JSON payload."
+        },
+        "sections": {
+          "media_connection": {
+            "name": "Connection & Protocol",
+            "data": {
+              "name": "Name",
+              "command_topic": "MQTT IRSend Command Topic",
+              "availability_topic": "Availability Topic (optional)",
+              "learn_topic": "IR Receive Topic (for Learning)",
+              "media_protocol": "IR Protocol",
+              "media_bits": "Bits"
+            }
+          },
+          "media_commands": {
+            "name": "Remote Button Hex Data",
+            "data": {
+              "media_power_data": "Power Toggle",
+              "media_power_on_data": "Power On",
+              "media_power_off_data": "Power Off",
+              "media_volume_up_data": "Volume Up",
+              "media_volume_down_data": "Volume Down",
+              "media_mute_data": "Mute",
+              "media_play_data": "Play",
+              "media_pause_data": "Pause",
+              "media_play_pause_data": "Play/Pause",
+              "media_stop_data": "Stop",
+              "media_next_data": "Next",
+              "media_previous_data": "Previous"
+            }
+          },
+          "media_sources": {
+            "name": "Input Sources",
+            "description": "**Direct mode:** fill in both the name and hex Data for each source.\n**Cycle mode:** fill in only the source names (in cycle order) and the Cycle Button hex data — pressing the cycle button advances to the next source.",
+            "data": {
+              "media_source_mode": "Source Selection Mode",
+              "media_source_cycle_data": "Source Cycle Button Hex Data",
+              "media_source_cycle_delay": "Delay Between Cycle Presses (seconds)",
+              "media_source_1_name": "Source 1 name",
+              "media_source_1_data": "Source 1 data (direct mode)",
+              "media_source_2_name": "Source 2 name",
+              "media_source_2_data": "Source 2 data (direct mode)",
+              "media_source_3_name": "Source 3 name",
+              "media_source_3_data": "Source 3 data (direct mode)",
+              "media_source_4_name": "Source 4 name",
+              "media_source_4_data": "Source 4 data (direct mode)",
+              "media_source_5_name": "Source 5 name",
+              "media_source_5_data": "Source 5 data (direct mode)",
+              "media_source_6_name": "Source 6 name",
+              "media_source_6_data": "Source 6 data (direct mode)"
+            }
+          }
+        }
+      },
+      "remote_options": {
+        "title": "Remote Commands",
+        "data": {
+          "learn_command": "Learn a Command (IR Learning)",
+          "name": "Name",
+          "command_topic": "MQTT IRSend Command Topic",
+          "availability_topic": "Availability Topic (optional)",
+          "media_protocol": "IR Protocol",
+          "media_bits": "Bits",
+          "media_power_data": "Power Toggle Hex Data (optional)",
+          "media_power_on_data": "Power On Hex Data (optional)",
+          "media_power_off_data": "Power Off Hex Data (optional)",
+          "media_volume_up_data": "Volume Up Hex Data (optional)",
+          "media_volume_down_data": "Volume Down Hex Data (optional)",
+          "media_mute_data": "Mute Hex Data (optional)",
+          "remote_digit_0_data": "Digit 0 Hex Data",
+          "remote_digit_1_data": "Digit 1 Hex Data",
+          "remote_digit_2_data": "Digit 2 Hex Data",
+          "remote_digit_3_data": "Digit 3 Hex Data",
+          "remote_digit_4_data": "Digit 4 Hex Data",
+          "remote_digit_5_data": "Digit 5 Hex Data",
+          "remote_digit_6_data": "Digit 6 Hex Data",
+          "remote_digit_7_data": "Digit 7 Hex Data",
+          "remote_digit_8_data": "Digit 8 Hex Data",
+          "remote_digit_9_data": "Digit 9 Hex Data",
+          "remote_up_data": "Up Hex Data",
+          "remote_down_data": "Down Hex Data",
+          "remote_left_data": "Left Hex Data",
+          "remote_right_data": "Right Hex Data",
+          "remote_ok_data": "OK Hex Data",
+          "remote_back_data": "Back Hex Data",
+          "remote_home_data": "Home Hex Data",
+          "remote_menu_data": "Menu Hex Data",
+          "remote_info_data": "Info Hex Data",
+          "remote_exit_data": "Exit Hex Data",
+          "remote_channel_up_data": "Channel Up Hex Data",
+          "remote_channel_down_data": "Channel Down Hex Data",
+          "remote_red_data": "Red Hex Data",
+          "remote_green_data": "Green Hex Data",
+          "remote_yellow_data": "Yellow Hex Data",
+          "remote_blue_data": "Blue Hex Data"
+        },
+        "data_description": {
+          "learn_command": "Select a command and click Submit to enter IR learning mode. The integration will subscribe to your Tasmota RESULT topic and fill the hex value when a button is pressed (30 s timeout).",
+          "command_topic": "Topic to publish IRSend commands to, e.g. cmnd/tasmota_ir/IRSend",
+          "availability_topic": "Leave blank to auto-derive from the command topic, e.g. tele/tasmota_ir/LWT",
+          "learn_topic": "MQTT topic Tasmota publishes IR received data to, e.g. tele/tasmota_ir/RESULT",
+          "media_protocol": "The protocol reported by Tasmota when decoding the remote, e.g. NEC, SONY, SAMSUNG.",
+          "media_bits": "The bit length reported by Tasmota for this remote code.",
+          "media_power_data": "Only the hex Data value, e.g. 0x20DF10EF. The integration builds the full IRSend JSON payload."
+        },
+        "sections": {
+          "media_connection": {
+            "name": "Connection & Protocol",
+            "data": {
+              "name": "Name",
+              "command_topic": "MQTT IRSend Command Topic",
+              "availability_topic": "Availability Topic (optional)",
+              "learn_topic": "IR Receive Topic (for Learning)",
+              "media_protocol": "IR Protocol",
+              "media_bits": "Bits"
+            }
+          },
+          "media_commands": {
+            "name": "Power & Volume",
+            "data": {
+              "media_power_data": "Power Toggle",
+              "media_power_on_data": "Power On",
+              "media_power_off_data": "Power Off",
+              "media_volume_up_data": "Volume Up",
+              "media_volume_down_data": "Volume Down",
+              "media_mute_data": "Mute"
+            }
+          },
+          "remote_keypad": {
+            "name": "Remote Keypad",
+            "description": "These commands are sent through remote.send_command as digit_0 through digit_9. Aliases 0 through 9 also work.",
+            "data": {
+              "remote_digit_0_data": "Digit 0",
+              "remote_digit_1_data": "Digit 1",
+              "remote_digit_2_data": "Digit 2",
+              "remote_digit_3_data": "Digit 3",
+              "remote_digit_4_data": "Digit 4",
+              "remote_digit_5_data": "Digit 5",
+              "remote_digit_6_data": "Digit 6",
+              "remote_digit_7_data": "Digit 7",
+              "remote_digit_8_data": "Digit 8",
+              "remote_digit_9_data": "Digit 9"
+            }
+          },
+          "remote_navigation": {
+            "name": "Remote Navigation",
+            "data": {
+              "remote_up_data": "Up",
+              "remote_down_data": "Down",
+              "remote_left_data": "Left",
+              "remote_right_data": "Right",
+              "remote_ok_data": "OK",
+              "remote_back_data": "Back",
+              "remote_home_data": "Home",
+              "remote_menu_data": "Menu",
+              "remote_info_data": "Info",
+              "remote_exit_data": "Exit"
+            }
+          },
+          "remote_extra": {
+            "name": "Remote Extra Buttons",
+            "data": {
+              "remote_channel_up_data": "Channel Up",
+              "remote_channel_down_data": "Channel Down",
+              "remote_red_data": "Red",
+              "remote_green_data": "Green",
+              "remote_yellow_data": "Yellow",
+              "remote_blue_data": "Blue"
+            }
+          },
+          "remote_sources": {
+            "name": "Input Sources",
+            "description": "**Direct mode:** call `remote.send_command` with the source name — each name maps to its own IR code.\n**Cycle mode:** call `remote.send_command` with a source name — the integration presses the cycle button the required number of times.",
+            "data": {
+              "media_source_mode": "Source Selection Mode",
+              "media_source_cycle_data": "Source Cycle Button Hex Data",
+              "media_source_cycle_delay": "Delay Between Cycle Presses (seconds)",
+              "media_source_1_name": "Source 1 name",
+              "media_source_1_data": "Source 1 data (direct mode)",
+              "media_source_2_name": "Source 2 name",
+              "media_source_2_data": "Source 2 data (direct mode)",
+              "media_source_3_name": "Source 3 name",
+              "media_source_3_data": "Source 3 data (direct mode)",
+              "media_source_4_name": "Source 4 name",
+              "media_source_4_data": "Source 4 data (direct mode)",
+              "media_source_5_name": "Source 5 name",
+              "media_source_5_data": "Source 5 data (direct mode)",
+              "media_source_6_name": "Source 6 name",
+              "media_source_6_data": "Source 6 data (direct mode)"
+            }
+          }
+        }
+      },
+      "learn_ir": {
+        "title": "Learning IR Command",
+        "description": "Point your remote at the Tasmota IR receiver and press the **{command_name}** button.\n\nWaiting up to 30 seconds…"
       }
     }
   }

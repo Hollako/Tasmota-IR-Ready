@@ -1,6 +1,9 @@
 """Config flow for Tasmota IRHVAC."""
 from __future__ import annotations
 
+import asyncio
+import json
+import logging
 from typing import Any
 
 import voluptuous as vol
@@ -29,6 +32,7 @@ from homeassistant.const import (
     PRECISION_TENTHS,
     PRECISION_WHOLE,
 )
+from homeassistant.components import mqtt
 from homeassistant.core import callback
 from homeassistant.helpers.selector import (
     BooleanSelector,
@@ -46,14 +50,49 @@ from homeassistant.helpers.selector import (
 from .const import (
     CONF_AVAILABILITY_TOPIC,
     CONF_AWAY_TEMP,
+    CONF_LEARN_TOPIC,
+    CONF_MEDIA_SOURCE_CYCLE_DATA,
+    CONF_MEDIA_SOURCE_CYCLE_DELAY,
+    CONF_MEDIA_SOURCE_MODE,
+    DEFAULT_MEDIA_SOURCE_CYCLE_DELAY,
+    DEFAULT_MEDIA_SOURCE_MODE,
+    SOURCE_MODE_CYCLE,
+    SOURCE_MODE_DIRECT,
     CONF_CELSIUS,
     CONF_COMMAND_TOPIC,
+    CONF_DEVICE_TYPE,
     CONF_FAN_LIST,
     CONF_HUMIDITY_SENSOR,
     CONF_IGNORE_OFF_TEMP,
     CONF_INITIAL_OPERATION_MODE,
     CONF_KEEP_MODE,
     CONF_MAX_TEMP,
+    CONF_MEDIA_BITS,
+    CONF_MEDIA_MUTE_DATA,
+    CONF_MEDIA_NEXT_DATA,
+    CONF_MEDIA_PAUSE_DATA,
+    CONF_MEDIA_PLAY_DATA,
+    CONF_MEDIA_PLAY_PAUSE_DATA,
+    CONF_MEDIA_POWER_DATA,
+    CONF_MEDIA_POWER_OFF_DATA,
+    CONF_MEDIA_POWER_ON_DATA,
+    CONF_MEDIA_PREVIOUS_DATA,
+    CONF_MEDIA_PROTOCOL,
+    CONF_MEDIA_SOURCE_1_DATA,
+    CONF_MEDIA_SOURCE_1_NAME,
+    CONF_MEDIA_SOURCE_2_DATA,
+    CONF_MEDIA_SOURCE_2_NAME,
+    CONF_MEDIA_SOURCE_3_DATA,
+    CONF_MEDIA_SOURCE_3_NAME,
+    CONF_MEDIA_SOURCE_4_DATA,
+    CONF_MEDIA_SOURCE_4_NAME,
+    CONF_MEDIA_SOURCE_5_DATA,
+    CONF_MEDIA_SOURCE_5_NAME,
+    CONF_MEDIA_SOURCE_6_DATA,
+    CONF_MEDIA_SOURCE_6_NAME,
+    CONF_MEDIA_STOP_DATA,
+    CONF_MEDIA_VOLUME_DOWN_DATA,
+    CONF_MEDIA_VOLUME_UP_DATA,
     CONF_MIN_TEMP,
     CONF_MODEL,
     CONF_MODES_LIST,
@@ -70,6 +109,32 @@ from .const import (
     CONF_TEMP_SENSOR,
     CONF_TEMP_STEP,
     CONF_TOGGLE_LIST,
+    CONF_REMOTE_BACK_DATA,
+    CONF_REMOTE_BLUE_DATA,
+    CONF_REMOTE_CHANNEL_DOWN_DATA,
+    CONF_REMOTE_CHANNEL_UP_DATA,
+    CONF_REMOTE_DIGIT_0_DATA,
+    CONF_REMOTE_DIGIT_1_DATA,
+    CONF_REMOTE_DIGIT_2_DATA,
+    CONF_REMOTE_DIGIT_3_DATA,
+    CONF_REMOTE_DIGIT_4_DATA,
+    CONF_REMOTE_DIGIT_5_DATA,
+    CONF_REMOTE_DIGIT_6_DATA,
+    CONF_REMOTE_DIGIT_7_DATA,
+    CONF_REMOTE_DIGIT_8_DATA,
+    CONF_REMOTE_DIGIT_9_DATA,
+    CONF_REMOTE_DOWN_DATA,
+    CONF_REMOTE_EXIT_DATA,
+    CONF_REMOTE_GREEN_DATA,
+    CONF_REMOTE_HOME_DATA,
+    CONF_REMOTE_INFO_DATA,
+    CONF_REMOTE_LEFT_DATA,
+    CONF_REMOTE_MENU_DATA,
+    CONF_REMOTE_OK_DATA,
+    CONF_REMOTE_RED_DATA,
+    CONF_REMOTE_RIGHT_DATA,
+    CONF_REMOTE_UP_DATA,
+    CONF_REMOTE_YELLOW_DATA,
     CONF_VENDOR,
     DEFAULT_COMMAND_TOPIC,
     DEFAULT_CONF_CELSIUS,
@@ -78,15 +143,23 @@ from .const import (
     DEFAULT_CONF_SLEEP,
     DEFAULT_FAN_LIST,
     DEFAULT_IGNORE_OFF_TEMP,
+    DEFAULT_IRSEND_COMMAND_TOPIC,
     DEFAULT_MAX_TEMP,
+    DEFAULT_MEDIA_BITS,
+    DEFAULT_MEDIA_NAME,
+    DEFAULT_MEDIA_PROTOCOL,
     DEFAULT_MIN_TEMP,
     DEFAULT_MODES_LIST,
     DEFAULT_MQTT_DELAY,
     DEFAULT_NAME,
     DEFAULT_PRECISION,
+    DEFAULT_REMOTE_NAME,
     DEFAULT_STATE_TOPIC,
     DEFAULT_SWING_LIST,
     DEFAULT_TARGET_TEMP,
+    DEVICE_TYPE_CLIMATE,
+    DEVICE_TYPE_MEDIA_PLAYER,
+    DEVICE_TYPE_REMOTE,
     DOMAIN,
     HVAC_FAN_AUTO_MAX,
     HVAC_FAN_MAX,
@@ -97,10 +170,19 @@ from .const import (
     TOGGLE_ALL_LIST,
 )
 
+_LOGGER = logging.getLogger(__name__)
+
 _CONF_STATE_TOPIC_2 = CONF_STATE_TOPIC + "_2"
 _SECTION_HVAC_MODES = "hvac_modes"
 _SECTION_FAN_SPEEDS = "fan_speeds"
 _SECTION_SWING_POSITIONS = "swing_positions"
+_SECTION_MEDIA_CONNECTION = "media_connection"
+_SECTION_MEDIA_COMMANDS = "media_commands"
+_SECTION_MEDIA_SOURCES = "media_sources"
+_SECTION_REMOTE_KEYPAD = "remote_keypad"
+_SECTION_REMOTE_NAVIGATION = "remote_navigation"
+_SECTION_REMOTE_EXTRA = "remote_extra"
+_SECTION_REMOTE_SOURCES = "remote_sources"
 
 # ---------------------------------------------------------------------------
 # Selector option lists
@@ -196,6 +278,77 @@ SWINGV_OPTIONS = [
 
 TOGGLE_OPTIONS = [{"value": item, "label": item} for item in TOGGLE_ALL_LIST]
 
+DEVICE_TYPE_OPTIONS = [
+    {"value": DEVICE_TYPE_CLIMATE, "label": "Climate"},
+    {"value": DEVICE_TYPE_MEDIA_PLAYER, "label": "Media Player"},
+    {"value": DEVICE_TYPE_REMOTE, "label": "Remote"},
+]
+
+SOURCE_MODE_OPTIONS = [
+    {"value": SOURCE_MODE_DIRECT, "label": "Direct — each source has its own IR code"},
+    {"value": SOURCE_MODE_CYCLE, "label": "Cycle — one button cycles through sources"},
+]
+
+MEDIA_COMMAND_DATA_FIELDS = [
+    CONF_MEDIA_POWER_DATA,
+    CONF_MEDIA_POWER_ON_DATA,
+    CONF_MEDIA_POWER_OFF_DATA,
+    CONF_MEDIA_VOLUME_UP_DATA,
+    CONF_MEDIA_VOLUME_DOWN_DATA,
+    CONF_MEDIA_MUTE_DATA,
+    CONF_MEDIA_PLAY_DATA,
+    CONF_MEDIA_PAUSE_DATA,
+    CONF_MEDIA_PLAY_PAUSE_DATA,
+    CONF_MEDIA_STOP_DATA,
+    CONF_MEDIA_NEXT_DATA,
+    CONF_MEDIA_PREVIOUS_DATA,
+    CONF_MEDIA_SOURCE_1_DATA,
+    CONF_MEDIA_SOURCE_2_DATA,
+    CONF_MEDIA_SOURCE_3_DATA,
+    CONF_MEDIA_SOURCE_4_DATA,
+    CONF_MEDIA_SOURCE_5_DATA,
+    CONF_MEDIA_SOURCE_6_DATA,
+    CONF_MEDIA_SOURCE_CYCLE_DATA,
+]
+
+MEDIA_SOURCE_NAME_FIELDS = [
+    CONF_MEDIA_SOURCE_1_NAME,
+    CONF_MEDIA_SOURCE_2_NAME,
+    CONF_MEDIA_SOURCE_3_NAME,
+    CONF_MEDIA_SOURCE_4_NAME,
+    CONF_MEDIA_SOURCE_5_NAME,
+    CONF_MEDIA_SOURCE_6_NAME,
+]
+
+REMOTE_COMMAND_DATA_FIELDS = [
+    CONF_REMOTE_DIGIT_0_DATA,
+    CONF_REMOTE_DIGIT_1_DATA,
+    CONF_REMOTE_DIGIT_2_DATA,
+    CONF_REMOTE_DIGIT_3_DATA,
+    CONF_REMOTE_DIGIT_4_DATA,
+    CONF_REMOTE_DIGIT_5_DATA,
+    CONF_REMOTE_DIGIT_6_DATA,
+    CONF_REMOTE_DIGIT_7_DATA,
+    CONF_REMOTE_DIGIT_8_DATA,
+    CONF_REMOTE_DIGIT_9_DATA,
+    CONF_REMOTE_UP_DATA,
+    CONF_REMOTE_DOWN_DATA,
+    CONF_REMOTE_LEFT_DATA,
+    CONF_REMOTE_RIGHT_DATA,
+    CONF_REMOTE_OK_DATA,
+    CONF_REMOTE_BACK_DATA,
+    CONF_REMOTE_HOME_DATA,
+    CONF_REMOTE_MENU_DATA,
+    CONF_REMOTE_INFO_DATA,
+    CONF_REMOTE_EXIT_DATA,
+    CONF_REMOTE_CHANNEL_UP_DATA,
+    CONF_REMOTE_CHANNEL_DOWN_DATA,
+    CONF_REMOTE_RED_DATA,
+    CONF_REMOTE_GREEN_DATA,
+    CONF_REMOTE_YELLOW_DATA,
+    CONF_REMOTE_BLUE_DATA,
+]
+
 SWINGH_OPTIONS = [
     {"value": "", "label": "— Not set —"},
     {"value": "off", "label": "Off"},
@@ -208,6 +361,80 @@ SWINGH_OPTIONS = [
     {"value": "wide", "label": "Wide"},
 ]
 
+_MEDIA_LEARN_OPTIONS = [
+    {"value": "", "label": "— No learning, just save —"},
+    {"value": CONF_MEDIA_POWER_DATA, "label": "Power Toggle"},
+    {"value": CONF_MEDIA_POWER_ON_DATA, "label": "Power On"},
+    {"value": CONF_MEDIA_POWER_OFF_DATA, "label": "Power Off"},
+    {"value": CONF_MEDIA_VOLUME_UP_DATA, "label": "Volume Up"},
+    {"value": CONF_MEDIA_VOLUME_DOWN_DATA, "label": "Volume Down"},
+    {"value": CONF_MEDIA_MUTE_DATA, "label": "Mute"},
+    {"value": CONF_MEDIA_PLAY_DATA, "label": "Play"},
+    {"value": CONF_MEDIA_PAUSE_DATA, "label": "Pause"},
+    {"value": CONF_MEDIA_PLAY_PAUSE_DATA, "label": "Play / Pause"},
+    {"value": CONF_MEDIA_STOP_DATA, "label": "Stop"},
+    {"value": CONF_MEDIA_NEXT_DATA, "label": "Next"},
+    {"value": CONF_MEDIA_PREVIOUS_DATA, "label": "Previous"},
+    {"value": CONF_MEDIA_SOURCE_CYCLE_DATA, "label": "Source Cycle Button"},
+    {"value": CONF_MEDIA_SOURCE_1_DATA, "label": "Source 1"},
+    {"value": CONF_MEDIA_SOURCE_2_DATA, "label": "Source 2"},
+    {"value": CONF_MEDIA_SOURCE_3_DATA, "label": "Source 3"},
+    {"value": CONF_MEDIA_SOURCE_4_DATA, "label": "Source 4"},
+    {"value": CONF_MEDIA_SOURCE_5_DATA, "label": "Source 5"},
+    {"value": CONF_MEDIA_SOURCE_6_DATA, "label": "Source 6"},
+]
+
+_REMOTE_LEARN_OPTIONS = [
+    {"value": "", "label": "— No learning, just save —"},
+    {"value": CONF_MEDIA_POWER_DATA, "label": "Power Toggle"},
+    {"value": CONF_MEDIA_POWER_ON_DATA, "label": "Power On"},
+    {"value": CONF_MEDIA_POWER_OFF_DATA, "label": "Power Off"},
+    {"value": CONF_MEDIA_VOLUME_UP_DATA, "label": "Volume Up"},
+    {"value": CONF_MEDIA_VOLUME_DOWN_DATA, "label": "Volume Down"},
+    {"value": CONF_MEDIA_MUTE_DATA, "label": "Mute"},
+    {"value": CONF_MEDIA_SOURCE_CYCLE_DATA, "label": "Source Cycle Button"},
+    {"value": CONF_MEDIA_SOURCE_1_DATA, "label": "Source 1"},
+    {"value": CONF_MEDIA_SOURCE_2_DATA, "label": "Source 2"},
+    {"value": CONF_MEDIA_SOURCE_3_DATA, "label": "Source 3"},
+    {"value": CONF_MEDIA_SOURCE_4_DATA, "label": "Source 4"},
+    {"value": CONF_MEDIA_SOURCE_5_DATA, "label": "Source 5"},
+    {"value": CONF_MEDIA_SOURCE_6_DATA, "label": "Source 6"},
+    {"value": CONF_REMOTE_DIGIT_0_DATA, "label": "Digit 0"},
+    {"value": CONF_REMOTE_DIGIT_1_DATA, "label": "Digit 1"},
+    {"value": CONF_REMOTE_DIGIT_2_DATA, "label": "Digit 2"},
+    {"value": CONF_REMOTE_DIGIT_3_DATA, "label": "Digit 3"},
+    {"value": CONF_REMOTE_DIGIT_4_DATA, "label": "Digit 4"},
+    {"value": CONF_REMOTE_DIGIT_5_DATA, "label": "Digit 5"},
+    {"value": CONF_REMOTE_DIGIT_6_DATA, "label": "Digit 6"},
+    {"value": CONF_REMOTE_DIGIT_7_DATA, "label": "Digit 7"},
+    {"value": CONF_REMOTE_DIGIT_8_DATA, "label": "Digit 8"},
+    {"value": CONF_REMOTE_DIGIT_9_DATA, "label": "Digit 9"},
+    {"value": CONF_REMOTE_UP_DATA, "label": "Up"},
+    {"value": CONF_REMOTE_DOWN_DATA, "label": "Down"},
+    {"value": CONF_REMOTE_LEFT_DATA, "label": "Left"},
+    {"value": CONF_REMOTE_RIGHT_DATA, "label": "Right"},
+    {"value": CONF_REMOTE_OK_DATA, "label": "OK"},
+    {"value": CONF_REMOTE_BACK_DATA, "label": "Back"},
+    {"value": CONF_REMOTE_HOME_DATA, "label": "Home"},
+    {"value": CONF_REMOTE_MENU_DATA, "label": "Menu"},
+    {"value": CONF_REMOTE_INFO_DATA, "label": "Info"},
+    {"value": CONF_REMOTE_EXIT_DATA, "label": "Exit"},
+    {"value": CONF_REMOTE_CHANNEL_UP_DATA, "label": "Channel Up"},
+    {"value": CONF_REMOTE_CHANNEL_DOWN_DATA, "label": "Channel Down"},
+    {"value": CONF_REMOTE_RED_DATA, "label": "Red"},
+    {"value": CONF_REMOTE_GREEN_DATA, "label": "Green"},
+    {"value": CONF_REMOTE_YELLOW_DATA, "label": "Yellow"},
+    {"value": CONF_REMOTE_BLUE_DATA, "label": "Blue"},
+]
+
+_LEARN_COMMAND_LABEL: dict[str, str] = {
+    opt["value"]: opt["label"]
+    for opts in (_MEDIA_LEARN_OPTIONS, _REMOTE_LEARN_OPTIONS)
+    for opt in opts
+    if opt["value"]
+}
+
+
 # ---------------------------------------------------------------------------
 # Config flow
 # ---------------------------------------------------------------------------
@@ -218,13 +445,57 @@ class TasmotaIrhvacConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
+    async def async_step_import(self, import_data: dict[str, Any]) -> dict:
+        """Create an entry programmatically from the IR Manager panel."""
+        data = dict(import_data)
+        # Ensure device_type is always set
+        data.setdefault(CONF_DEVICE_TYPE, DEVICE_TYPE_CLIMATE)
+        title = data.get(CONF_NAME) or "IR Device"
+        command_topic = (data.get(CONF_COMMAND_TOPIC) or "").strip()
+        if command_topic:
+            unique_id = f"{data[CONF_DEVICE_TYPE]}:{command_topic}"
+            await self.async_set_unique_id(unique_id)
+            self._abort_if_unique_id_configured()
+        return self.async_create_entry(title=title, data=data)
+
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> dict:
-        """Initial setup step — collect the minimum required to connect."""
+        """Initial setup step - choose the IR device type."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
+            device_type = user_input[CONF_DEVICE_TYPE]
+            if device_type == DEVICE_TYPE_MEDIA_PLAYER:
+                return await self.async_step_media_player()
+            if device_type == DEVICE_TYPE_REMOTE:
+                return await self.async_step_remote()
+            return await self.async_step_climate()
+
+        schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_DEVICE_TYPE,
+                    default=DEVICE_TYPE_CLIMATE,
+                ): SelectSelector(
+                    SelectSelectorConfig(
+                        options=DEVICE_TYPE_OPTIONS,
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+            }
+        )
+
+        return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
+
+    async def async_step_climate(
+        self, user_input: dict[str, Any] | None = None
+    ) -> dict:
+        """Collect the minimum required details for an IRHVAC climate entity."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            user_input[CONF_DEVICE_TYPE] = DEVICE_TYPE_CLIMATE
             await self.async_set_unique_id(user_input[CONF_COMMAND_TOPIC])
             self._abort_if_unique_id_configured()
             return self.async_create_entry(
@@ -236,12 +507,271 @@ class TasmotaIrhvacConfigFlow(ConfigFlow, domain=DOMAIN):
             {
                 vol.Required(CONF_NAME, default=DEFAULT_NAME): TextSelector(),
                 vol.Required(CONF_VENDOR): TextSelector(),
-                vol.Required(CONF_COMMAND_TOPIC, default=DEFAULT_COMMAND_TOPIC): TextSelector(),
-                vol.Required(CONF_STATE_TOPIC, default=DEFAULT_STATE_TOPIC): TextSelector(),
+                vol.Required(
+                    CONF_COMMAND_TOPIC,
+                    default=DEFAULT_COMMAND_TOPIC,
+                ): TextSelector(),
+                vol.Required(
+                    CONF_STATE_TOPIC,
+                    default=DEFAULT_STATE_TOPIC,
+                ): TextSelector(),
             }
         )
 
-        return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
+        return self.async_show_form(
+            step_id="climate", data_schema=schema, errors=errors
+        )
+
+    async def async_step_media_player(
+        self, user_input: dict[str, Any] | None = None
+    ) -> dict:
+        """Collect the minimum required details for an IR media player."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            user_input[CONF_AVAILABILITY_TOPIC] = (
+                user_input.get(CONF_AVAILABILITY_TOPIC) or ""
+            ).strip()
+            user_input[CONF_LEARN_TOPIC] = (
+                user_input.get(CONF_LEARN_TOPIC) or ""
+            ).strip()
+            for key in MEDIA_COMMAND_DATA_FIELDS:
+                if key in user_input:
+                    user_input[key] = user_input[key].strip()
+            for key in MEDIA_SOURCE_NAME_FIELDS:
+                if key in user_input:
+                    user_input[key] = user_input[key].strip()
+            if CONF_MEDIA_PROTOCOL in user_input:
+                user_input[CONF_MEDIA_PROTOCOL] = user_input[
+                    CONF_MEDIA_PROTOCOL
+                ].strip().upper()
+            if CONF_MEDIA_BITS in user_input:
+                user_input[CONF_MEDIA_BITS] = int(user_input[CONF_MEDIA_BITS])
+            user_input[CONF_DEVICE_TYPE] = DEVICE_TYPE_MEDIA_PLAYER
+            unique_id = (
+                f"{DEVICE_TYPE_MEDIA_PLAYER}:"
+                f"{user_input[CONF_COMMAND_TOPIC]}:"
+                f"{user_input[CONF_NAME]}"
+            ).lower()
+            await self.async_set_unique_id(unique_id)
+            self._abort_if_unique_id_configured()
+            return self.async_create_entry(
+                title=user_input[CONF_NAME],
+                data=user_input,
+            )
+
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_NAME, default=DEFAULT_MEDIA_NAME): TextSelector(),
+                vol.Required(
+                    CONF_COMMAND_TOPIC,
+                    default=DEFAULT_IRSEND_COMMAND_TOPIC,
+                ): TextSelector(),
+                vol.Optional(
+                    CONF_AVAILABILITY_TOPIC,
+                    default="",
+                ): TextSelector(),
+                vol.Optional(
+                    CONF_LEARN_TOPIC,
+                    default="",
+                ): TextSelector(),
+                vol.Required(
+                    CONF_MEDIA_PROTOCOL,
+                    default=DEFAULT_MEDIA_PROTOCOL,
+                ): TextSelector(),
+                vol.Required(
+                    CONF_MEDIA_BITS,
+                    default=DEFAULT_MEDIA_BITS,
+                ): NumberSelector(
+                    NumberSelectorConfig(
+                        min=1,
+                        max=256,
+                        step=1,
+                        mode=NumberSelectorMode.BOX,
+                    )
+                ),
+                vol.Optional(
+                    CONF_MEDIA_POWER_DATA,
+                    default="",
+                ): TextSelector(),
+                vol.Optional(
+                    CONF_MEDIA_POWER_ON_DATA,
+                    default="",
+                ): TextSelector(),
+                vol.Optional(
+                    CONF_MEDIA_POWER_OFF_DATA,
+                    default="",
+                ): TextSelector(),
+                vol.Optional(
+                    CONF_MEDIA_VOLUME_UP_DATA,
+                    default="",
+                ): TextSelector(),
+                vol.Optional(
+                    CONF_MEDIA_VOLUME_DOWN_DATA,
+                    default="",
+                ): TextSelector(),
+                vol.Optional(
+                    CONF_MEDIA_MUTE_DATA,
+                    default="",
+                ): TextSelector(),
+                vol.Optional(
+                    CONF_MEDIA_PLAY_PAUSE_DATA,
+                    default="",
+                ): TextSelector(),
+                vol.Optional(
+                    CONF_MEDIA_NEXT_DATA,
+                    default="",
+                ): TextSelector(),
+                vol.Optional(
+                    CONF_MEDIA_PREVIOUS_DATA,
+                    default="",
+                ): TextSelector(),
+                vol.Optional(
+                    CONF_MEDIA_SOURCE_1_NAME,
+                    default="",
+                ): TextSelector(),
+                vol.Optional(
+                    CONF_MEDIA_SOURCE_1_DATA,
+                    default="",
+                ): TextSelector(),
+                vol.Optional(
+                    CONF_MEDIA_SOURCE_2_NAME,
+                    default="",
+                ): TextSelector(),
+                vol.Optional(
+                    CONF_MEDIA_SOURCE_2_DATA,
+                    default="",
+                ): TextSelector(),
+                vol.Optional(
+                    CONF_MEDIA_SOURCE_3_NAME,
+                    default="",
+                ): TextSelector(),
+                vol.Optional(
+                    CONF_MEDIA_SOURCE_3_DATA,
+                    default="",
+                ): TextSelector(),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="media_player", data_schema=schema, errors=errors
+        )
+
+    async def async_step_remote(
+        self, user_input: dict[str, Any] | None = None
+    ) -> dict:
+        """Collect the minimum required details for an IR remote."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            user_input[CONF_AVAILABILITY_TOPIC] = (
+                user_input.get(CONF_AVAILABILITY_TOPIC) or ""
+            ).strip()
+            user_input[CONF_LEARN_TOPIC] = (
+                user_input.get(CONF_LEARN_TOPIC) or ""
+            ).strip()
+            for key in (*REMOTE_COMMAND_DATA_FIELDS, *MEDIA_COMMAND_DATA_FIELDS):
+                if key in user_input:
+                    user_input[key] = user_input[key].strip()
+            if CONF_MEDIA_PROTOCOL in user_input:
+                user_input[CONF_MEDIA_PROTOCOL] = user_input[
+                    CONF_MEDIA_PROTOCOL
+                ].strip().upper()
+            if CONF_MEDIA_BITS in user_input:
+                user_input[CONF_MEDIA_BITS] = int(user_input[CONF_MEDIA_BITS])
+            user_input[CONF_DEVICE_TYPE] = DEVICE_TYPE_REMOTE
+            unique_id = (
+                f"{DEVICE_TYPE_REMOTE}:"
+                f"{user_input[CONF_COMMAND_TOPIC]}:"
+                f"{user_input[CONF_NAME]}"
+            ).lower()
+            await self.async_set_unique_id(unique_id)
+            self._abort_if_unique_id_configured()
+            return self.async_create_entry(
+                title=user_input[CONF_NAME],
+                data=user_input,
+            )
+
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_NAME, default=DEFAULT_REMOTE_NAME): TextSelector(),
+                vol.Required(
+                    CONF_COMMAND_TOPIC,
+                    default=DEFAULT_IRSEND_COMMAND_TOPIC,
+                ): TextSelector(),
+                vol.Optional(
+                    CONF_AVAILABILITY_TOPIC,
+                    default="",
+                ): TextSelector(),
+                vol.Optional(
+                    CONF_LEARN_TOPIC,
+                    default="",
+                ): TextSelector(),
+                vol.Required(
+                    CONF_MEDIA_PROTOCOL,
+                    default=DEFAULT_MEDIA_PROTOCOL,
+                ): TextSelector(),
+                vol.Required(
+                    CONF_MEDIA_BITS,
+                    default=DEFAULT_MEDIA_BITS,
+                ): NumberSelector(
+                    NumberSelectorConfig(
+                        min=1,
+                        max=256,
+                        step=1,
+                        mode=NumberSelectorMode.BOX,
+                    )
+                ),
+                vol.Optional(
+                    CONF_MEDIA_POWER_DATA,
+                    default="",
+                ): TextSelector(),
+                vol.Optional(
+                    CONF_MEDIA_POWER_ON_DATA,
+                    default="",
+                ): TextSelector(),
+                vol.Optional(
+                    CONF_MEDIA_POWER_OFF_DATA,
+                    default="",
+                ): TextSelector(),
+                vol.Optional(
+                    CONF_MEDIA_VOLUME_UP_DATA,
+                    default="",
+                ): TextSelector(),
+                vol.Optional(
+                    CONF_MEDIA_VOLUME_DOWN_DATA,
+                    default="",
+                ): TextSelector(),
+                vol.Optional(
+                    CONF_MEDIA_MUTE_DATA,
+                    default="",
+                ): TextSelector(),
+                vol.Optional(
+                    CONF_REMOTE_UP_DATA,
+                    default="",
+                ): TextSelector(),
+                vol.Optional(
+                    CONF_REMOTE_DOWN_DATA,
+                    default="",
+                ): TextSelector(),
+                vol.Optional(
+                    CONF_REMOTE_LEFT_DATA,
+                    default="",
+                ): TextSelector(),
+                vol.Optional(
+                    CONF_REMOTE_RIGHT_DATA,
+                    default="",
+                ): TextSelector(),
+                vol.Optional(
+                    CONF_REMOTE_OK_DATA,
+                    default="",
+                ): TextSelector(),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="remote", data_schema=schema, errors=errors
+        )
 
     @staticmethod
     @callback
@@ -260,9 +790,19 @@ class TasmotaIrhvacOptionsFlow(OptionsFlow):
     def __init__(self, config_entry: ConfigEntry) -> None:
         self._entry = config_entry
         self._options: dict[str, Any] = {}
+        self._learning_task: asyncio.Task | None = None
+        self._learn_command: str | None = None
+        self._learned_value: str | None = None
+        self._pending_input: dict[str, Any] | None = None
+        self._device_type_learning: str = DEVICE_TYPE_MEDIA_PLAYER
 
     def _current(self) -> dict[str, Any]:
-        return {**self._entry.data, **self._entry.options}
+        base = {**self._entry.data, **self._entry.options}
+        if self._pending_input is not None:
+            base.update(self._pending_input)
+        if self._learn_command and self._learned_value:
+            base[self._learn_command] = self._learned_value
+        return base
 
     # ------------------------------------------------------------------
     # Step 1 — Connection
@@ -272,6 +812,12 @@ class TasmotaIrhvacOptionsFlow(OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> dict:
         """Connection settings: topics, sensors, MQTT delay."""
+        device_type = self._current().get(CONF_DEVICE_TYPE, DEVICE_TYPE_CLIMATE)
+        if device_type == DEVICE_TYPE_MEDIA_PLAYER:
+            return await self.async_step_media_player_options(user_input)
+        if device_type == DEVICE_TYPE_REMOTE:
+            return await self.async_step_remote_options(user_input)
+
         if user_input is not None:
             self._options.update(user_input)
             return await self.async_step_capabilities()
@@ -314,6 +860,446 @@ class TasmotaIrhvacOptionsFlow(OptionsFlow):
             step_id="init",
             data_schema=self.add_suggested_values_to_schema(base_schema, suggested),
         )
+
+    async def async_step_media_player_options(
+        self, user_input: dict[str, Any] | None = None
+    ) -> dict:
+        """Connection and command options for an IR media player."""
+        if user_input is not None:
+            learn_command = (user_input.pop("learn_command", None) or "").strip()
+            if learn_command:
+                pending = dict(user_input)
+                for section_key in (
+                    _SECTION_MEDIA_CONNECTION,
+                    _SECTION_MEDIA_COMMANDS,
+                    _SECTION_MEDIA_SOURCES,
+                ):
+                    pending.update(pending.pop(section_key, {}))
+                self._pending_input = pending
+                self._learn_command = learn_command
+                self._device_type_learning = DEVICE_TYPE_MEDIA_PLAYER
+                self._learning_task = None
+                return await self.async_step_learn_ir()
+
+            for section_key in (
+                _SECTION_MEDIA_CONNECTION,
+                _SECTION_MEDIA_COMMANDS,
+                _SECTION_MEDIA_SOURCES,
+            ):
+                user_input.update(user_input.pop(section_key, {}))
+            user_input[CONF_AVAILABILITY_TOPIC] = (
+                user_input.get(CONF_AVAILABILITY_TOPIC) or ""
+            ).strip()
+            user_input[CONF_LEARN_TOPIC] = (
+                user_input.get(CONF_LEARN_TOPIC) or ""
+            ).strip()
+            for key in (*MEDIA_COMMAND_DATA_FIELDS, *MEDIA_SOURCE_NAME_FIELDS):
+                user_input[key] = (user_input.get(key) or "").strip()
+            if CONF_MEDIA_PROTOCOL in user_input:
+                user_input[CONF_MEDIA_PROTOCOL] = user_input[
+                    CONF_MEDIA_PROTOCOL
+                ].strip().upper()
+            if CONF_MEDIA_BITS in user_input:
+                user_input[CONF_MEDIA_BITS] = int(user_input[CONF_MEDIA_BITS])
+            if CONF_MEDIA_SOURCE_CYCLE_DELAY in user_input:
+                user_input[CONF_MEDIA_SOURCE_CYCLE_DELAY] = float(user_input[CONF_MEDIA_SOURCE_CYCLE_DELAY])
+            self._options.update(user_input)
+            return self.async_create_entry(title="", data=self._options)
+
+        current = self._current()
+
+        base_schema = vol.Schema(
+            {
+                vol.Optional("learn_command", default=""): SelectSelector(
+                    SelectSelectorConfig(
+                        options=_MEDIA_LEARN_OPTIONS,
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+                vol.Required(_SECTION_MEDIA_CONNECTION): section(
+                    vol.Schema(
+                        {
+                            vol.Required(
+                                CONF_NAME,
+                                default=current.get(CONF_NAME, DEFAULT_MEDIA_NAME),
+                            ): TextSelector(),
+                            vol.Required(
+                                CONF_COMMAND_TOPIC,
+                                default=current.get(
+                                    CONF_COMMAND_TOPIC, DEFAULT_IRSEND_COMMAND_TOPIC
+                                ),
+                            ): TextSelector(),
+                            vol.Optional(
+                                CONF_AVAILABILITY_TOPIC,
+                                description={"suggested_value": current.get(CONF_AVAILABILITY_TOPIC, "")},
+                            ): TextSelector(),
+                            vol.Optional(
+                                CONF_LEARN_TOPIC,
+                                description={"suggested_value": current.get(CONF_LEARN_TOPIC, "")},
+                            ): TextSelector(),
+                            vol.Required(
+                                CONF_MEDIA_PROTOCOL,
+                                default=current.get(
+                                    CONF_MEDIA_PROTOCOL, DEFAULT_MEDIA_PROTOCOL
+                                ),
+                            ): TextSelector(),
+                            vol.Required(
+                                CONF_MEDIA_BITS,
+                                default=int(
+                                    current.get(CONF_MEDIA_BITS, DEFAULT_MEDIA_BITS)
+                                ),
+                            ): NumberSelector(
+                                NumberSelectorConfig(
+                                    min=1,
+                                    max=256,
+                                    step=1,
+                                    mode=NumberSelectorMode.BOX,
+                                )
+                            ),
+                        }
+                    ),
+                    {"collapsed": False},
+                ),
+                vol.Required(_SECTION_MEDIA_COMMANDS): section(
+                    vol.Schema(
+                        {
+                            vol.Optional(CONF_MEDIA_POWER_DATA, description={"suggested_value": current.get(CONF_MEDIA_POWER_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_POWER_ON_DATA, description={"suggested_value": current.get(CONF_MEDIA_POWER_ON_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_POWER_OFF_DATA, description={"suggested_value": current.get(CONF_MEDIA_POWER_OFF_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_VOLUME_UP_DATA, description={"suggested_value": current.get(CONF_MEDIA_VOLUME_UP_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_VOLUME_DOWN_DATA, description={"suggested_value": current.get(CONF_MEDIA_VOLUME_DOWN_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_MUTE_DATA, description={"suggested_value": current.get(CONF_MEDIA_MUTE_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_PLAY_DATA, description={"suggested_value": current.get(CONF_MEDIA_PLAY_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_PAUSE_DATA, description={"suggested_value": current.get(CONF_MEDIA_PAUSE_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_PLAY_PAUSE_DATA, description={"suggested_value": current.get(CONF_MEDIA_PLAY_PAUSE_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_STOP_DATA, description={"suggested_value": current.get(CONF_MEDIA_STOP_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_NEXT_DATA, description={"suggested_value": current.get(CONF_MEDIA_NEXT_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_PREVIOUS_DATA, description={"suggested_value": current.get(CONF_MEDIA_PREVIOUS_DATA, "")}): TextSelector(),
+                        }
+                    ),
+                    {"collapsed": False},
+                ),
+                vol.Required(_SECTION_MEDIA_SOURCES): section(
+                    vol.Schema(
+                        {
+                            vol.Required(
+                                CONF_MEDIA_SOURCE_MODE,
+                                default=current.get(CONF_MEDIA_SOURCE_MODE, DEFAULT_MEDIA_SOURCE_MODE),
+                            ): SelectSelector(SelectSelectorConfig(
+                                options=SOURCE_MODE_OPTIONS,
+                                mode=SelectSelectorMode.DROPDOWN,
+                            )),
+                            vol.Optional(
+                                CONF_MEDIA_SOURCE_CYCLE_DATA,
+                                description={"suggested_value": current.get(CONF_MEDIA_SOURCE_CYCLE_DATA, "")},
+                            ): TextSelector(),
+                            vol.Required(
+                                CONF_MEDIA_SOURCE_CYCLE_DELAY,
+                                default=float(current.get(CONF_MEDIA_SOURCE_CYCLE_DELAY, DEFAULT_MEDIA_SOURCE_CYCLE_DELAY)),
+                            ): NumberSelector(NumberSelectorConfig(
+                                min=0.1, max=5.0, step=0.1, mode=NumberSelectorMode.BOX
+                            )),
+                            vol.Optional(CONF_MEDIA_SOURCE_1_NAME, description={"suggested_value": current.get(CONF_MEDIA_SOURCE_1_NAME, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_SOURCE_1_DATA, description={"suggested_value": current.get(CONF_MEDIA_SOURCE_1_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_SOURCE_2_NAME, description={"suggested_value": current.get(CONF_MEDIA_SOURCE_2_NAME, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_SOURCE_2_DATA, description={"suggested_value": current.get(CONF_MEDIA_SOURCE_2_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_SOURCE_3_NAME, description={"suggested_value": current.get(CONF_MEDIA_SOURCE_3_NAME, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_SOURCE_3_DATA, description={"suggested_value": current.get(CONF_MEDIA_SOURCE_3_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_SOURCE_4_NAME, description={"suggested_value": current.get(CONF_MEDIA_SOURCE_4_NAME, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_SOURCE_4_DATA, description={"suggested_value": current.get(CONF_MEDIA_SOURCE_4_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_SOURCE_5_NAME, description={"suggested_value": current.get(CONF_MEDIA_SOURCE_5_NAME, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_SOURCE_5_DATA, description={"suggested_value": current.get(CONF_MEDIA_SOURCE_5_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_SOURCE_6_NAME, description={"suggested_value": current.get(CONF_MEDIA_SOURCE_6_NAME, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_SOURCE_6_DATA, description={"suggested_value": current.get(CONF_MEDIA_SOURCE_6_DATA, "")}): TextSelector(),
+                        }
+                    ),
+                    {"collapsed": True},
+                ),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="media_player_options",
+            data_schema=base_schema,
+        )
+
+    async def async_step_remote_options(
+        self, user_input: dict[str, Any] | None = None
+    ) -> dict:
+        """Connection and command options for an IR remote."""
+        if user_input is not None:
+            learn_command = (user_input.pop("learn_command", None) or "").strip()
+            if learn_command:
+                pending = dict(user_input)
+                for section_key in (
+                    _SECTION_MEDIA_CONNECTION,
+                    _SECTION_MEDIA_COMMANDS,
+                    _SECTION_REMOTE_KEYPAD,
+                    _SECTION_REMOTE_NAVIGATION,
+                    _SECTION_REMOTE_EXTRA,
+                    _SECTION_REMOTE_SOURCES,
+                ):
+                    pending.update(pending.pop(section_key, {}))
+                self._pending_input = pending
+                self._learn_command = learn_command
+                self._device_type_learning = DEVICE_TYPE_REMOTE
+                self._learning_task = None
+                return await self.async_step_learn_ir()
+
+            for section_key in (
+                _SECTION_MEDIA_CONNECTION,
+                _SECTION_MEDIA_COMMANDS,
+                _SECTION_REMOTE_KEYPAD,
+                _SECTION_REMOTE_NAVIGATION,
+                _SECTION_REMOTE_EXTRA,
+                _SECTION_REMOTE_SOURCES,
+            ):
+                user_input.update(user_input.pop(section_key, {}))
+            user_input[CONF_AVAILABILITY_TOPIC] = (
+                user_input.get(CONF_AVAILABILITY_TOPIC) or ""
+            ).strip()
+            user_input[CONF_LEARN_TOPIC] = (
+                user_input.get(CONF_LEARN_TOPIC) or ""
+            ).strip()
+            for key in (*REMOTE_COMMAND_DATA_FIELDS, *MEDIA_COMMAND_DATA_FIELDS):
+                user_input[key] = (user_input.get(key) or "").strip()
+            for key in MEDIA_SOURCE_NAME_FIELDS:
+                user_input[key] = (user_input.get(key) or "").strip()
+            if CONF_MEDIA_PROTOCOL in user_input:
+                user_input[CONF_MEDIA_PROTOCOL] = user_input[
+                    CONF_MEDIA_PROTOCOL
+                ].strip().upper()
+            if CONF_MEDIA_BITS in user_input:
+                user_input[CONF_MEDIA_BITS] = int(user_input[CONF_MEDIA_BITS])
+            if CONF_MEDIA_SOURCE_CYCLE_DELAY in user_input:
+                user_input[CONF_MEDIA_SOURCE_CYCLE_DELAY] = float(user_input[CONF_MEDIA_SOURCE_CYCLE_DELAY])
+            self._options.update(user_input)
+            return self.async_create_entry(title="", data=self._options)
+
+        current = self._current()
+
+        base_schema = vol.Schema(
+            {
+                vol.Optional("learn_command", default=""): SelectSelector(
+                    SelectSelectorConfig(
+                        options=_REMOTE_LEARN_OPTIONS,
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+                vol.Required(_SECTION_MEDIA_CONNECTION): section(
+                    vol.Schema(
+                        {
+                            vol.Required(
+                                CONF_NAME,
+                                default=current.get(CONF_NAME, DEFAULT_REMOTE_NAME),
+                            ): TextSelector(),
+                            vol.Required(
+                                CONF_COMMAND_TOPIC,
+                                default=current.get(
+                                    CONF_COMMAND_TOPIC, DEFAULT_IRSEND_COMMAND_TOPIC
+                                ),
+                            ): TextSelector(),
+                            vol.Optional(
+                                CONF_AVAILABILITY_TOPIC,
+                                description={"suggested_value": current.get(CONF_AVAILABILITY_TOPIC, "")},
+                            ): TextSelector(),
+                            vol.Optional(
+                                CONF_LEARN_TOPIC,
+                                description={"suggested_value": current.get(CONF_LEARN_TOPIC, "")},
+                            ): TextSelector(),
+                            vol.Required(
+                                CONF_MEDIA_PROTOCOL,
+                                default=current.get(
+                                    CONF_MEDIA_PROTOCOL, DEFAULT_MEDIA_PROTOCOL
+                                ),
+                            ): TextSelector(),
+                            vol.Required(
+                                CONF_MEDIA_BITS,
+                                default=int(
+                                    current.get(CONF_MEDIA_BITS, DEFAULT_MEDIA_BITS)
+                                ),
+                            ): NumberSelector(
+                                NumberSelectorConfig(
+                                    min=1,
+                                    max=256,
+                                    step=1,
+                                    mode=NumberSelectorMode.BOX,
+                                )
+                            ),
+                        }
+                    ),
+                    {"collapsed": False},
+                ),
+                vol.Required(_SECTION_MEDIA_COMMANDS): section(
+                    vol.Schema(
+                        {
+                            vol.Optional(CONF_MEDIA_POWER_DATA, description={"suggested_value": current.get(CONF_MEDIA_POWER_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_POWER_ON_DATA, description={"suggested_value": current.get(CONF_MEDIA_POWER_ON_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_POWER_OFF_DATA, description={"suggested_value": current.get(CONF_MEDIA_POWER_OFF_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_VOLUME_UP_DATA, description={"suggested_value": current.get(CONF_MEDIA_VOLUME_UP_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_VOLUME_DOWN_DATA, description={"suggested_value": current.get(CONF_MEDIA_VOLUME_DOWN_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_MUTE_DATA, description={"suggested_value": current.get(CONF_MEDIA_MUTE_DATA, "")}): TextSelector(),
+                        }
+                    ),
+                    {"collapsed": False},
+                ),
+                vol.Required(_SECTION_REMOTE_KEYPAD): section(
+                    vol.Schema(
+                        {
+                            vol.Optional(CONF_REMOTE_DIGIT_0_DATA, description={"suggested_value": current.get(CONF_REMOTE_DIGIT_0_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_REMOTE_DIGIT_1_DATA, description={"suggested_value": current.get(CONF_REMOTE_DIGIT_1_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_REMOTE_DIGIT_2_DATA, description={"suggested_value": current.get(CONF_REMOTE_DIGIT_2_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_REMOTE_DIGIT_3_DATA, description={"suggested_value": current.get(CONF_REMOTE_DIGIT_3_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_REMOTE_DIGIT_4_DATA, description={"suggested_value": current.get(CONF_REMOTE_DIGIT_4_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_REMOTE_DIGIT_5_DATA, description={"suggested_value": current.get(CONF_REMOTE_DIGIT_5_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_REMOTE_DIGIT_6_DATA, description={"suggested_value": current.get(CONF_REMOTE_DIGIT_6_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_REMOTE_DIGIT_7_DATA, description={"suggested_value": current.get(CONF_REMOTE_DIGIT_7_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_REMOTE_DIGIT_8_DATA, description={"suggested_value": current.get(CONF_REMOTE_DIGIT_8_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_REMOTE_DIGIT_9_DATA, description={"suggested_value": current.get(CONF_REMOTE_DIGIT_9_DATA, "")}): TextSelector(),
+                        }
+                    ),
+                    {"collapsed": True},
+                ),
+                vol.Required(_SECTION_REMOTE_NAVIGATION): section(
+                    vol.Schema(
+                        {
+                            vol.Optional(CONF_REMOTE_UP_DATA, description={"suggested_value": current.get(CONF_REMOTE_UP_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_REMOTE_DOWN_DATA, description={"suggested_value": current.get(CONF_REMOTE_DOWN_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_REMOTE_LEFT_DATA, description={"suggested_value": current.get(CONF_REMOTE_LEFT_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_REMOTE_RIGHT_DATA, description={"suggested_value": current.get(CONF_REMOTE_RIGHT_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_REMOTE_OK_DATA, description={"suggested_value": current.get(CONF_REMOTE_OK_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_REMOTE_BACK_DATA, description={"suggested_value": current.get(CONF_REMOTE_BACK_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_REMOTE_HOME_DATA, description={"suggested_value": current.get(CONF_REMOTE_HOME_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_REMOTE_MENU_DATA, description={"suggested_value": current.get(CONF_REMOTE_MENU_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_REMOTE_INFO_DATA, description={"suggested_value": current.get(CONF_REMOTE_INFO_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_REMOTE_EXIT_DATA, description={"suggested_value": current.get(CONF_REMOTE_EXIT_DATA, "")}): TextSelector(),
+                        }
+                    ),
+                    {"collapsed": True},
+                ),
+                vol.Required(_SECTION_REMOTE_EXTRA): section(
+                    vol.Schema(
+                        {
+                            vol.Optional(CONF_REMOTE_CHANNEL_UP_DATA, description={"suggested_value": current.get(CONF_REMOTE_CHANNEL_UP_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_REMOTE_CHANNEL_DOWN_DATA, description={"suggested_value": current.get(CONF_REMOTE_CHANNEL_DOWN_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_REMOTE_RED_DATA, description={"suggested_value": current.get(CONF_REMOTE_RED_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_REMOTE_GREEN_DATA, description={"suggested_value": current.get(CONF_REMOTE_GREEN_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_REMOTE_YELLOW_DATA, description={"suggested_value": current.get(CONF_REMOTE_YELLOW_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_REMOTE_BLUE_DATA, description={"suggested_value": current.get(CONF_REMOTE_BLUE_DATA, "")}): TextSelector(),
+                        }
+                    ),
+                    {"collapsed": True},
+                ),
+                vol.Required(_SECTION_REMOTE_SOURCES): section(
+                    vol.Schema(
+                        {
+                            vol.Required(
+                                CONF_MEDIA_SOURCE_MODE,
+                                default=current.get(CONF_MEDIA_SOURCE_MODE, DEFAULT_MEDIA_SOURCE_MODE),
+                            ): SelectSelector(SelectSelectorConfig(
+                                options=SOURCE_MODE_OPTIONS,
+                                mode=SelectSelectorMode.DROPDOWN,
+                            )),
+                            vol.Optional(
+                                CONF_MEDIA_SOURCE_CYCLE_DATA,
+                                description={"suggested_value": current.get(CONF_MEDIA_SOURCE_CYCLE_DATA, "")},
+                            ): TextSelector(),
+                            vol.Required(
+                                CONF_MEDIA_SOURCE_CYCLE_DELAY,
+                                default=float(current.get(CONF_MEDIA_SOURCE_CYCLE_DELAY, DEFAULT_MEDIA_SOURCE_CYCLE_DELAY)),
+                            ): NumberSelector(NumberSelectorConfig(
+                                min=0.1, max=5.0, step=0.1, mode=NumberSelectorMode.BOX
+                            )),
+                            vol.Optional(CONF_MEDIA_SOURCE_1_NAME, description={"suggested_value": current.get(CONF_MEDIA_SOURCE_1_NAME, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_SOURCE_1_DATA, description={"suggested_value": current.get(CONF_MEDIA_SOURCE_1_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_SOURCE_2_NAME, description={"suggested_value": current.get(CONF_MEDIA_SOURCE_2_NAME, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_SOURCE_2_DATA, description={"suggested_value": current.get(CONF_MEDIA_SOURCE_2_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_SOURCE_3_NAME, description={"suggested_value": current.get(CONF_MEDIA_SOURCE_3_NAME, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_SOURCE_3_DATA, description={"suggested_value": current.get(CONF_MEDIA_SOURCE_3_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_SOURCE_4_NAME, description={"suggested_value": current.get(CONF_MEDIA_SOURCE_4_NAME, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_SOURCE_4_DATA, description={"suggested_value": current.get(CONF_MEDIA_SOURCE_4_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_SOURCE_5_NAME, description={"suggested_value": current.get(CONF_MEDIA_SOURCE_5_NAME, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_SOURCE_5_DATA, description={"suggested_value": current.get(CONF_MEDIA_SOURCE_5_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_SOURCE_6_NAME, description={"suggested_value": current.get(CONF_MEDIA_SOURCE_6_NAME, "")}): TextSelector(),
+                            vol.Optional(CONF_MEDIA_SOURCE_6_DATA, description={"suggested_value": current.get(CONF_MEDIA_SOURCE_6_DATA, "")}): TextSelector(),
+                        }
+                    ),
+                    {"collapsed": True},
+                ),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="remote_options",
+            data_schema=base_schema,
+        )
+
+    # ------------------------------------------------------------------
+    # IR Learning
+    # ------------------------------------------------------------------
+
+    async def async_step_learn_ir(
+        self, user_input: dict[str, Any] | None = None
+    ) -> dict:
+        """Show progress while waiting for a Tasmota IrReceived MQTT message."""
+        if self._learning_task is None:
+            self._learning_task = self.hass.async_create_task(
+                self._async_wait_for_ir()
+            )
+
+        if not self._learning_task.done():
+            command_label = _LEARN_COMMAND_LABEL.get(
+                self._learn_command or "", self._learn_command or "unknown"
+            )
+            return self.async_show_progress(
+                step_id="learn_ir",
+                progress_action="wait_for_ir",
+                progress_task=self._learning_task,
+                description_placeholders={"command_name": command_label},
+            )
+
+        try:
+            result = self._learning_task.result()
+            if result:
+                self._learned_value = result
+        except Exception as err:
+            _LOGGER.warning("IR learning task error: %s", err)
+        self._learning_task = None
+
+        if self._device_type_learning == DEVICE_TYPE_REMOTE:
+            return self.async_show_progress_done(next_step_id="remote_options")
+        return self.async_show_progress_done(next_step_id="media_player_options")
+
+    async def _async_wait_for_ir(self) -> str:
+        """Subscribe to the configured learn topic and return the first IrReceived Data hex string."""
+        tele_topic = (self._current().get(CONF_LEARN_TOPIC) or "").strip()
+        if not tele_topic:
+            _LOGGER.warning(
+                "IR learning: no receive topic configured. "
+                "Set the 'IR Receive Topic' field in Connection & Protocol."
+            )
+            return ""
+        future: asyncio.Future[str] = self.hass.loop.create_future()
+
+        @callback
+        def _on_message(msg: mqtt.ReceiveMessage) -> None:
+            try:
+                payload = json.loads(msg.payload)
+                data = payload.get("IrReceived", {}).get("Data", "")
+                if data and not future.done():
+                    future.set_result(data)
+            except Exception:
+                pass
+
+        unsub = await mqtt.async_subscribe(self.hass, tele_topic, _on_message)
+        try:
+            return await asyncio.wait_for(future, timeout=30.0)
+        except asyncio.TimeoutError:
+            return ""
+        finally:
+            unsub()
+            if not future.done():
+                future.cancel()
 
     # ------------------------------------------------------------------
     # Step 2 — Capabilities
