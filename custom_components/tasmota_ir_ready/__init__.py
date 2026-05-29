@@ -64,16 +64,21 @@ async def _async_ensure_lovelace_resource(hass: HomeAssistant, url: str) -> None
     await resources.async_load()
     base_url = url.split("?")[0]
 
-    for item in list(resources.async_items()):
-        if item.get("url", "").split("?")[0] == base_url:
-            if item["url"] != url:
-                # Version changed — update the stored entry in-place
-                await resources.async_update_item(
-                    item["id"], {"res_type": "module", "url": url}
-                )
-            return  # Already present (correct version or just updated)
+    existing = [
+        item for item in resources.async_items()
+        if item.get("url", "").split("?")[0] == base_url
+    ]
 
-    # First install — add the resource
+    # Remove every stale entry (wrong version or duplicates)
+    stale = [item for item in existing if item["url"] != url]
+    for item in stale:
+        await resources.async_delete_item(item["id"])
+
+    # If at least one correct entry remains, nothing more to do
+    if len(existing) - len(stale) > 0:
+        return
+
+    # No correct entry exists — create it
     await resources.async_create_item({"res_type": "module", "url": url})
 
 

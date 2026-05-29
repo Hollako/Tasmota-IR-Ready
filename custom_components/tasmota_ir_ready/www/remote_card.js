@@ -1285,13 +1285,15 @@ if (!customElements.get("tasmota-ir-ready-remote-card")) {
 }
 
 window.customCards = window.customCards || [];
-window.customCards.push({
-  type:        "tasmota-ir-ready-remote-card",
-  name:        "Tasmota IR Ready Remote",
-  description: "Remote-control card for Tasmota IR Ready - up to 4 remotes as tabs, configurable groups, extra buttons, hold-to-repeat.",
-  preview:     false,
-  documentationURL: "https://github.com/Hollako/Tasmota-IR-Ready",
-});
+if (!window.customCards.some(c => c.type === "tasmota-ir-ready-remote-card")) {
+  window.customCards.push({
+    type:        "tasmota-ir-ready-remote-card",
+    name:        "Tasmota IR Ready Remote",
+    description: "Remote-control card for Tasmota IR Ready - up to 4 remotes as tabs, configurable groups, extra buttons, hold-to-repeat.",
+    preview:     false,
+    documentationURL: "https://github.com/Hollako/Tasmota-IR-Ready",
+  });
+}
 
 console.info(
   `%c TASMOTA-IR-REMOTE-CARD %c v${CARD_VERSION} `,
