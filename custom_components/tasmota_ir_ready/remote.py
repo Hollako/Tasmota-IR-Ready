@@ -213,7 +213,7 @@ class TasmotaIrRemote(RestoreEntity, RemoteEntity):
                 name = str(item.get("name") or "").strip()
                 data = str(item.get("data") or "").strip()
                 if name and data:
-                    self._commands[name.lower()] = data
+                    self._commands[name] = data
 
         # Source mode setup
         self._source_mode: str = config.get(CONF_MEDIA_SOURCE_MODE, DEFAULT_MEDIA_SOURCE_MODE)
@@ -226,6 +226,10 @@ class TasmotaIrRemote(RestoreEntity, RemoteEntity):
         self._available: bool = True
         self._unsubscribes: list = []
 
+        # Always load per-source IR codes so direct jumps work in both modes.
+        source_cmds = self._build_direct_source_commands(config)
+        self._commands.update(source_cmds)
+
         if self._source_mode == SOURCE_MODE_CYCLE:
             self._source_names: list[str] = self._build_cycle_source_list(config)
             # Register cycle button as a plain named command so the card can
@@ -233,9 +237,6 @@ class TasmotaIrRemote(RestoreEntity, RemoteEntity):
             if self._cycle_data:
                 self._commands["source_cycle"] = self._cycle_data
         else:
-            # Direct mode: merge source name → IR data into _commands
-            source_cmds = self._build_direct_source_commands(config)
-            self._commands.update(source_cmds)
             self._source_names = list(source_cmds)
 
     # ------------------------------------------------------------------
@@ -364,8 +365,16 @@ class TasmotaIrRemote(RestoreEntity, RemoteEntity):
     async def _async_publish_command(self, command: str) -> None:
         """Publish one configured remote command."""
         normalized = COMMAND_ALIASES.get(command.lower(), command.lower())
-        # Also try the original casing for user-defined source names
-        data = self._commands.get(normalized) or self._commands.get(command)
+        # Try normalized (lowercase), then original casing, then case-insensitive scan
+        # so commands stored with original casing are found regardless of how they are called.
+        data = (
+            self._commands.get(normalized)
+            or self._commands.get(command)
+            or next(
+                (v for k, v in self._commands.items() if k.lower() == command.lower()),
+                None,
+            )
+        )
         if not data:
             _LOGGER.warning("Unknown or unconfigured remote command '%s'.", command)
             return
@@ -413,13 +422,19 @@ class TasmotaIrRemote(RestoreEntity, RemoteEntity):
 
         for repeat in range(repeats):
             for index, item in enumerate(commands):
-                # Cycle mode: case-insensitive match against source names
+                # Cycle mode: route to cycle logic only when no direct IR code
+                # exists for this source (per-source direct codes take priority).
                 cycle_target: str | None = None
                 if self._source_mode == SOURCE_MODE_CYCLE:
-                    cycle_target = next(
-                        (s for s in self._source_names if s.lower() == item.lower()),
-                        None,
+                    norm = COMMAND_ALIASES.get(item.lower(), item.lower())
+                    has_direct = bool(
+                        self._commands.get(norm) or self._commands.get(item)
                     )
+                    if not has_direct:
+                        cycle_target = next(
+                            (s for s in self._source_names if s.lower() == item.lower()),
+                            None,
+                        )
                 if cycle_target is not None:
                     await self._async_cycle_to_source(cycle_target)
                 else:

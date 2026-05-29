@@ -80,10 +80,10 @@ const GROUP_DEFS = [
     label: "Color Buttons",
     layout: "row",
     buttons: [
-      { cmd: "red",    icon: "⬤", cls: "btn-color btn-red",    title: "Red"    },
-      { cmd: "green",  icon: "⬤", cls: "btn-color btn-green",  title: "Green"  },
-      { cmd: "yellow", icon: "⬤", cls: "btn-color btn-yellow", title: "Yellow" },
-      { cmd: "blue",   icon: "⬤", cls: "btn-color btn-blue",   title: "Blue"   },
+      { cmd: "red",    cls: "btn-color btn-red",    title: "Red"    },
+      { cmd: "green",  cls: "btn-color btn-green",  title: "Green"  },
+      { cmd: "yellow", cls: "btn-color btn-yellow", title: "Yellow" },
+      { cmd: "blue",   cls: "btn-color btn-blue",   title: "Blue"   },
     ],
   },
   {
@@ -115,6 +115,19 @@ const KNOWN_CMDS = new Set([
 // Commands that support hold-to-repeat when button is held
 const HOLD_CMDS = new Set(["volume_up", "volume_down", "channel_up", "channel_down"]);
 
+const CARD_ICONS = [
+  { label: "TV",          icon: "📺" },
+  { label: "Satellite",   icon: "📡" },
+  { label: "Monitor",     icon: "🖥"  },
+  { label: "Projector",   icon: "🎬" },
+  { label: "Game",        icon: "🎮" },
+  { label: "Speaker",     icon: "🔊" },
+  { label: "Radio",       icon: "📻" },
+  { label: "DVD / Blu-ray", icon: "💿" },
+  { label: "Recorder",    icon: "📼" },
+  { label: "Remote",      icon: "🎛"  },
+];
+
 // ── Visual card editor ────────────────────────────────────────────────────────
 
 class TasmotaIrRemoteCardEditor extends HTMLElement {
@@ -134,8 +147,6 @@ class TasmotaIrRemoteCardEditor extends HTMLElement {
     this._hass = hass;
     if (!this._ready) this._build();
     if (this._entityPicker) this._entityPicker.hass = hass;
-    // Fallback input: keep datalist fresh
-    this._refreshDatalist();
   }
 
   // ── Build ──────────────────────────────────────────────────────────────────
@@ -299,6 +310,13 @@ class TasmotaIrRemoteCardEditor extends HTMLElement {
     <input id="title-inp" class="ed-input" type="text" placeholder="e.g. Living Room TV" value="${this._esc(this._config.title || "")}">
   </div>
 
+  <div class="ed-section">
+    <label class="ed-lbl">Card Icon</label>
+    <select id="icon-sel" class="ed-input">
+      ${CARD_ICONS.map(o => `<option value="${o.icon}" ${this._config.card_icon === o.icon ? "selected" : ""}>${o.icon} ${o.label}</option>`).join("")}
+    </select>
+  </div>
+
   <hr class="ed-divider">
 
   <div class="ed-section">
@@ -322,16 +340,16 @@ class TasmotaIrRemoteCardEditor extends HTMLElement {
   </div>
 </div>`;
 
-    // Native entity picker — must be appended to DOM before setting properties
-    this._entityPicker = document.createElement("ha-entity-picker");
-    this.querySelector("#entity-slot").appendChild(this._entityPicker);
-    this._entityPicker.hass = this._hass;
-    this._entityPicker.value = this._config.entity || "";
-    this._entityPicker.includeDomains = ["remote"];
-    this._entityPicker.allowCustomEntity = true;
+    // ha-selector is the correct HA component for card editors
+    this._entityPicker = document.createElement("ha-selector");
+    this._entityPicker.hass     = this._hass;
+    this._entityPicker.label    = "Entity";
+    this._entityPicker.selector = { entity: { domain: "remote" } };
+    this._entityPicker.value    = this._config.entity || "";
     this._entityPicker.addEventListener("value-changed", e => {
       this._emit({ ...this._config, entity: e.detail.value });
     });
+    this.querySelector("#entity-slot").appendChild(this._entityPicker);
 
     // Title
     this.querySelector("#title-inp").addEventListener("change", e => {
@@ -339,6 +357,11 @@ class TasmotaIrRemoteCardEditor extends HTMLElement {
       const c = { ...this._config };
       if (val) c.title = val; else delete c.title;
       this._emit(c);
+    });
+
+    // Icon picker
+    this.querySelector("#icon-sel").addEventListener("change", e => {
+      this._emit({ ...this._config, card_icon: e.target.value });
     });
 
     // Group checkboxes
@@ -532,22 +555,31 @@ class TasmotaIrRemoteCard extends HTMLElement {
     const extraCmds   = new Set(extraBtns.map(b => b.command).filter(Boolean));
     const customCmds  = cmds.filter(c => !KNOWN_CMDS.has(c) && !sourceList.includes(c) && !extraCmds.has(c));
 
-    // Build body
+    // Build body — volume / dpad / channels are rendered together as the VDC zone
+    const VDC_IDS = new Set(["power", "volume", "channels", "dpad"]);
     let body = "";
+    let vdcDone = false;
     for (const g of GROUP_DEFS) {
       if (hidden.has(g.id)) continue;
+      if (VDC_IDS.has(g.id)) continue;
+      // Insert the VDC zone just before the first non-power group
+      if (!vdcDone && g.id !== "power") {
+        body += this._renderVdcZone(cmds, hidden);
+        vdcDone = true;
+      }
       body += this._groupHtml(g, cmds);
     }
+    if (!vdcDone) body += this._renderVdcZone(cmds, hidden);
 
-    // Sources
+    // Sources — direct per-source buttons (cycle button lives in the power row)
     if (sourceList.length) {
       body += this._sectionLabel("Sources");
-      body += `<div class="rmt-row src-row">${
-        sourceList.map((s, i) => {
-          const active = (sourceMode === "cycle" && i === sourceIdx) ? " src-active" : "";
-          return `<button class="rmt-btn btn-src${active}" data-cmd="${this._esc(s)}" title="${this._esc(s)}">${this._esc(s)}</button>`;
-        }).join("")
-      }</div>`;
+      let srcHtml = "";
+      // Direct source buttons
+      srcHtml += sourceList.map(s => {
+        return `<button class="rmt-btn btn-src" data-cmd="${this._esc(s)}" title="${this._esc(s)}">${this._esc(s)}</button>`;
+      }).join("");
+      body += `<div class="rmt-row src-row">${srcHtml}</div>`;
     }
 
     // Extra buttons from card config
@@ -577,7 +609,7 @@ class TasmotaIrRemoteCard extends HTMLElement {
       <ha-card>
         <div class="card-hdr">
           <div class="hdr-left">
-            <span class="card-icon">📺</span>
+            <span class="card-icon">${this._config.card_icon || "📺"}</span>
             <span class="card-name">${this._esc(name)}</span>
           </div>
           ${offline
@@ -613,34 +645,43 @@ class TasmotaIrRemoteCard extends HTMLElement {
     if (!hasAny) return "";
 
     switch (group.layout) {
-      case "power":  return this._renderPower(vis.filter(b => b && cmds.includes(b.cmd)));
+      case "power":  return this._renderPower(vis.filter(b => b && cmds.includes(b.cmd)), cmds);
       case "dpad":   return this._renderDpad(group.buttons, cmds);
       case "keypad": return this._renderKeypad(group.buttons, cmds);
       default:       return this._renderRow(vis.filter(b => b && cmds.includes(b.cmd)));
     }
   }
 
-  _renderPower(vis) {
+  _renderPower(vis, cmds = []) {
     if (!vis.length) return "";
+    const hasCycle = cmds.includes("source_cycle");
+    const cycleBtn = hasCycle
+      ? `<button class="rmt-btn btn-cycle" data-cmd="source_cycle" title="Cycle Input"><ha-icon icon="mdi:import"></ha-icon></button>`
+      : "";
+    const rowCls   = hasCycle ? "rmt-row pwr-row" : "rmt-row";
     if (vis.length === 1 && vis[0].cmd === "power") {
-      return `<div class="rmt-row">
-        <button class="rmt-btn btn-power btn-power-pill" data-cmd="power">⏻ POWER</button>
+      return `<div class="${rowCls}">
+        <button class="rmt-btn btn-power-icon" data-cmd="power" title="Power">⏻</button>
+        ${cycleBtn}
       </div>`;
     }
-    return `<div class="rmt-row">${
+    return `<div class="${rowCls}">${
       vis.map(b => `<button class="rmt-btn btn-power" data-cmd="${b.cmd}">${b.label}</button>`).join("")
-    }</div>`;
+    }${cycleBtn}</div>`;
   }
 
   _renderRow(vis) {
     if (!vis.length) return "";
     return `<div class="rmt-row">${
       vis.map(b => {
-        const inner = b.icon
-          ? `<span class="b-icon">${b.icon}</span><span class="b-lbl">${b.label || ""}</span>`
-          : `<span class="b-lbl">${b.label || b.cmd}</span>`;
-        const cls   = "rmt-btn" + (b.cls ? " " + b.cls : "") + (HOLD_CMDS.has(b.cmd) ? " hold-capable" : "");
-        const title = b.title || b.label || b.cmd;
+        const isColor = b.cls && b.cls.includes("btn-color");
+        const inner   = isColor
+          ? ""
+          : b.icon
+            ? `<span class="b-icon">${b.icon}</span>`
+            : `<span class="b-lbl">${b.label || b.cmd}</span>`;
+        const cls     = "rmt-btn" + (b.cls ? " " + b.cls : "") + (HOLD_CMDS.has(b.cmd) ? " hold-capable" : "");
+        const title   = b.title || b.label || b.cmd;
         return `<button class="${cls}" data-cmd="${b.cmd}" title="${title}">${inner}</button>`;
       }).join("")
     }</div>`;
@@ -670,6 +711,88 @@ class TasmotaIrRemoteCard extends HTMLElement {
         return `<button class="rmt-btn kp-btn" data-cmd="${b.cmd}">${b.label}</button>`;
       }).join("")
     }</div>`;
+  }
+
+  // Header row (Power | gap | Cycle) sits above Volume | D-pad | Channels,
+  // all sharing the same CSS-grid columns so they line up perfectly.
+  _renderVdcZone(cmds, hidden) {
+    const powerGrp = GROUP_DEFS.find(g => g.id === "power");
+    const volGrp   = GROUP_DEFS.find(g => g.id === "volume");
+    const chGrp    = GROUP_DEFS.find(g => g.id === "channels");
+    const dpadGrp  = GROUP_DEFS.find(g => g.id === "dpad");
+
+    const hasPower = !hidden.has("power")    && powerGrp?.buttons.some(b => b && cmds.includes(b.cmd));
+    const hasVol   = !hidden.has("volume")   && volGrp?.buttons.some(b  => b && cmds.includes(b.cmd));
+    const hasCh    = !hidden.has("channels") && chGrp?.buttons.some(b  => b && cmds.includes(b.cmd));
+    const hasDpad  = !hidden.has("dpad")     && dpadGrp?.buttons.some(b => b && cmds.includes(b.cmd));
+    const hasCycle = cmds.includes("source_cycle");
+
+    if (!hasPower && !hasVol && !hasCh && !hasDpad && !hasCycle) return "";
+
+    const makeColBtns = (btns) => btns
+      .filter(b => b && cmds.includes(b.cmd))
+      .map(b => {
+        const cls   = "rmt-btn"
+          + (b.cls ? " " + b.cls : "")
+          + (HOLD_CMDS.has(b.cmd) ? " hold-capable" : "");
+        const inner = b.icon
+          ? `<span class="b-icon">${b.icon}</span>`
+          : `<span class="b-lbl">${b.label || b.cmd}</span>`;
+        return `<button class="${cls}" data-cmd="${b.cmd}" title="${b.label || b.cmd}">${inner}</button>`;
+      }).join("");
+
+    // Power button HTML
+    let pwrHtml = "";
+    if (hasPower) {
+      const btns = powerGrp.buttons.filter(b => b && cmds.includes(b.cmd));
+      pwrHtml = (btns.length === 1 && btns[0].cmd === "power")
+        ? `<button class="rmt-btn btn-power-icon" data-cmd="power" title="Power">⏻</button>`
+        : btns.map(b => `<button class="rmt-btn btn-power" data-cmd="${b.cmd}">${b.label}</button>`).join("");
+    }
+    const cycHtml  = hasCycle ? `<button class="rmt-btn btn-cycle" data-cmd="source_cycle" title="Cycle Input"><ha-icon icon="mdi:import"></ha-icon></button>` : "";
+    const volHtml  = hasVol  ? makeColBtns(volGrp.buttons)  : "";
+    const chHtml   = hasCh   ? makeColBtns(chGrp.buttons)   : "";
+    const dpadHtml = hasDpad ? this._renderDpad(dpadGrp.buttons, cmds) : "";
+
+    const hasHeader = hasPower || hasCycle;
+
+    // No header — plain 3-column flex zone
+    if (!hasHeader) {
+      return `<div class="vdc-zone">
+        <div class="vdc-col">${volHtml}</div>
+        <div class="vdc-center">${dpadHtml}</div>
+        <div class="vdc-col">${chHtml}</div>
+      </div>`;
+    }
+
+    // Header row + main row share the same CSS grid so columns align exactly
+    return `<div class="vdc-grid">
+      <div class="vdc-g-hdr">${pwrHtml}</div>
+      <div></div>
+      <div class="vdc-g-hdr">${cycHtml}</div>
+      <div class="vdc-g-col">${volHtml}</div>
+      <div class="vdc-g-dpad">${dpadHtml}</div>
+      <div class="vdc-g-col">${chHtml}</div>
+    </div>`;
+  }
+
+  _getSourceIcon(name) {
+    const n = name.toLowerCase().trim();
+    if (/^hdmi\s*1$/.test(n)) return "①";
+    if (/^hdmi\s*2$/.test(n)) return "②";
+    if (/^hdmi\s*3$/.test(n)) return "③";
+    if (/^hdmi\s*4$/.test(n)) return "④";
+    if (/^hdmi\s*5$/.test(n)) return "⑤";
+    if (/^(tv|dtv|atv|antenna)$/.test(n)) return "📺";
+    if (/^usb/.test(n))       return "⏏";
+    if (/^netflix/.test(n))   return "🎬";
+    if (/^youtube/.test(n))   return "▶";
+    if (/^av\s*\d*$|^video/.test(n)) return "📹";
+    if (/^(pc|vga|dvi|displayport|dp)$/.test(n)) return "🖥";
+    if (/^(sat(ellite)?|dbs)/.test(n)) return "📡";
+    if (/^(game|ps\d|xbox)/.test(n))   return "🎮";
+    if (/^(dvd|blu|bd)/.test(n))       return "💿";
+    return null; // fall back to text label
   }
 
   _sectionLabel(text) {
@@ -707,10 +830,8 @@ ha-card { overflow: hidden; border-radius: 12px; }
   align-items: center;
   justify-content: space-between;
   padding: 14px 16px 12px;
-  background: linear-gradient(135deg,
-    var(--primary-color, #03a9f4) 0%,
-    color-mix(in srgb, var(--primary-color, #03a9f4) 80%, #000) 100%);
-  color: #fff;
+  background: var(--secondary-background-color, rgba(120,120,120,0.08));
+  color: var(--primary-text-color);
 }
 .hdr-left {
   display: flex;
@@ -720,7 +841,7 @@ ha-card { overflow: hidden; border-radius: 12px; }
 }
 .card-icon { font-size: 1.3em; flex-shrink: 0; }
 .card-name {
-  font-size: 1.05em;
+  font-size: 1.3em;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -758,16 +879,16 @@ ha-card { overflow: hidden; border-radius: 12px; }
   align-items: center;
   justify-content: center;
   gap: 3px;
-  min-width: 56px;
-  min-height: 46px;
-  padding: 7px 13px;
+  min-width: 60px;
+  min-height: 52px;
+  padding: 8px 14px;
   border: none;
   border-radius: 10px;
   background: var(--secondary-background-color, rgba(120,120,120,0.08));
   color: var(--primary-text-color);
   cursor: pointer;
   font-family: inherit;
-  font-size: 0.85em;
+  font-size: 0.88em;
   line-height: 1.2;
   box-shadow: 0 1px 4px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04);
   transition: background 0.12s, box-shadow 0.12s, transform 0.08s;
@@ -801,8 +922,10 @@ ha-card { overflow: hidden; border-radius: 12px; }
   opacity: 0.4;
 }
 
-.b-icon { font-size: 1.2em; line-height: 1; }
-.b-lbl  { font-size: 0.76em; letter-spacing: 0.01em; opacity: 0.85; }
+.b-icon { font-size: 2em; line-height: 1; }
+[data-cmd="settings"] .b-icon { font-size: 2.5em; }
+[data-cmd="home"] .b-icon { font-size: 3em; display: inline-block; transform: translateY(-0.08em); }
+.b-lbl  { font-size: 0.82em; letter-spacing: 0.01em; }
 
 /* ── Row ───────────────────────────────────────────────────── */
 .rmt-row {
@@ -813,6 +936,87 @@ ha-card { overflow: hidden; border-radius: 12px; }
   width: 100%;
 }
 
+/* ── VDC zone: Volume | D-pad | Channels ───────────────────── */
+.vdc-zone {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 14px;
+  width: 100%;
+}
+.vdc-col {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 7px;
+  min-width: 64px;
+}
+.vdc-col .rmt-btn {
+  flex: 1;
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+}
+.vdc-center {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── VDC Grid (header row + main row, column-aligned) ────────── */
+.vdc-grid {
+  display: grid;
+  grid-template-columns: minmax(64px, auto) auto minmax(64px, auto);
+  column-gap: 14px;
+  row-gap: 10px;
+  justify-content: center;
+  width: 100%;
+}
+.vdc-g-hdr {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.vdc-g-col {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 7px;
+  align-self: stretch;
+}
+.vdc-g-col .rmt-btn {
+  flex: 1;
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+}
+.vdc-g-dpad {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Power icon (circle) inside the VDC left column ────────── */
+.vdc-col .btn-power-icon {
+  flex: 0 0 56px;
+  width: 56px !important;
+  align-self: center;
+}
+.btn-power-icon {
+  min-width: 56px !important;
+  min-height: 56px !important;
+  width: 56px;
+  height: 56px;
+  border-radius: 50% !important;
+  background: var(--secondary-background-color, rgba(120,120,120,0.08)) !important;
+  color: var(--error-color, #e53935) !important;
+  font-size: 1.7em;
+  box-shadow: 0 2px 8px rgba(229,57,53,0.25);
+}
+
 /* ── Power ─────────────────────────────────────────────────── */
 .btn-power {
   background: var(--error-color, #e53935) !important;
@@ -821,8 +1025,6 @@ ha-card { overflow: hidden; border-radius: 12px; }
   font-size: 0.92em;
   box-shadow: 0 2px 6px rgba(229,57,53,0.35);
 }
-.btn-power:hover  { filter: brightness(1.1); }
-.btn-power:active { background: #b71c1c !important; transform: scale(0.87); }
 .btn-power-pill {
   min-width: 150px;
   min-height: 50px;
@@ -833,11 +1035,10 @@ ha-card { overflow: hidden; border-radius: 12px; }
 
 /* ── Mute ──────────────────────────────────────────────────── */
 .btn-mute {
-  background: var(--warning-color, #ff8f00) !important;
-  color: #fff !important;
-  box-shadow: 0 2px 6px rgba(255,143,0,0.35);
+  background: var(--secondary-background-color, rgba(120,120,120,0.08)) !important;
+  color: var(--primary-text-color) !important;
+  box-shadow: none;
 }
-.btn-mute:active { background: #e65100 !important; }
 
 /* ── Color circles ─────────────────────────────────────────── */
 .btn-color {
@@ -869,22 +1070,25 @@ ha-card { overflow: hidden; border-radius: 12px; }
   min-width: 62px !important;
   min-height: 62px !important;
   border-radius: 50% !important;
-  background: var(--primary-color, #03a9f4) !important;
-  color: #fff !important;
+  background: var(--secondary-background-color, rgba(120,120,120,0.08)) !important;
+  color: var(--primary-text-color) !important;
   font-weight: 700;
   font-size: 0.95em;
-  box-shadow: 0 3px 8px rgba(3,169,244,0.4);
+  outline: 2.5px solid var(--primary-color, #03a9f4);
+  outline-offset: -2px;
+  box-shadow: none;
 }
-.dpad-ok:active { background: color-mix(in srgb, var(--primary-color, #03a9f4) 80%, #000) !important; }
 
 /* ── Keypad ────────────────────────────────────────────────── */
 .keypad-grid {
   display: grid;
-  grid-template-columns: repeat(3, 56px);
+  grid-template-columns: repeat(3, 1fr);
   gap: 7px;
+  width: 75%;
+  margin: 0 auto;
 }
 .kp-btn {
-  min-width: 56px  !important;
+  width: 100%;
   min-height: 50px !important;
   font-size: 1.2em;
   font-weight: 600;
@@ -916,6 +1120,7 @@ ha-card { overflow: hidden; border-radius: 12px; }
 }
 
 /* ── Source / Custom buttons ───────────────────────────────── */
+.rmt-btn ha-icon { --mdc-icon-size: 26px; display: flex; }
 .btn-src {
   flex: 1 1 auto;
   min-width: 66px;
