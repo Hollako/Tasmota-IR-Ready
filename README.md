@@ -75,7 +75,7 @@ The integration adds an **IR Manager** panel to your Home Assistant sidebar. It 
 1. Open the IR Manager panel.
 2. Select your Tasmota device's telemetry topic (e.g. `tele/<device>/RESULT`).
 3. Click **Learn** and point your original remote at the Tasmota IR receiver.
-4. Press the button you want to capture — the hex code appears automatically within 30 seconds.
+4. Press the button you want to capture - the hex code appears automatically within 30 seconds.
 5. Copy the code into the relevant field of your device configuration.
 
 ### Testing IR codes
@@ -86,9 +86,9 @@ Use the **Send** function to transmit any hex code on demand directly from the p
 
 The panel includes a built-in IR profile database and supports user-managed profiles:
 
-- **Built-in profiles** — ready-to-use hex code sets for common devices, stored inside the integration
-- **Custom profiles** — place your own JSON profiles in `/config/tasmota_ir_ready/ir_database/` and they appear alongside the built-in ones
-- **Export** — save a configured device's full IR code set as a reusable profile
+- **Built-in profiles** - ready-to-use hex code sets for common devices, stored inside the integration
+- **Custom profiles** - place your own JSON profiles in `/config/tasmota_ir_ready/ir_database/` and they appear alongside the built-in ones
+- **Export** - save a configured device's full IR code set as a reusable profile
 
 Profile format:
 
@@ -208,13 +208,13 @@ Controls IR-controlled fans using Tasmota's `IRSend` command. Configure hex IR c
 **Supported controls:**
 
 - Power on / off / toggle
-- Speed presets — up to 6 named speed levels (e.g. Low, Medium, High)
-- Oscillation — toggle, dedicated on code, and dedicated off code
-- Direction — forward and reverse
+- Speed presets - up to 6 named speed levels (e.g. Low, Medium, High)
+- Oscillation - toggle, dedicated on code, and dedicated off code
+- Direction - forward and reverse
 
 **Optional sensors:**
 
-- `power_sensor` — external binary sensor entity reflecting the fan's physical power state; keeps HA in sync when the fan is controlled by other means
+- `power_sensor` - external binary sensor entity reflecting the fan's physical power state; keeps HA in sync when the fan is controlled by other means
 
 The availability topic is auto-derived from the command topic (`tele/<device>/LWT`) or can be set explicitly.
 
@@ -222,13 +222,13 @@ The availability topic is auto-derived from the command topic (`tele/<device>/LW
 
 ## Humidifier
 
-Controls IR-controlled humidifiers using Tasmota's `IRSend` command. All state is optimistic since IR devices cannot report back — target humidity and on/off state are tracked entirely in Home Assistant.
+Controls IR-controlled humidifiers using Tasmota's `IRSend` command. All state is optimistic since IR devices cannot report back - target humidity and on/off state are tracked entirely in Home Assistant.
 
 **Supported controls:**
 
 - Power on / off / toggle
-- Modes — up to 6 named operating modes (e.g. Auto, Sleep, Boost)
-- Target humidity — stored optimistically in HA (no IR code sent when changing the setpoint)
+- Modes - up to 6 named operating modes (e.g. Auto, Sleep, Boost)
+- Target humidity - stored optimistically in HA (no IR code sent when changing the setpoint)
 
 **Humidity range:**
 
@@ -236,14 +236,14 @@ Configure `min_humidity`, `max_humidity`, and `humidity_step` to match your devi
 
 **Action states** (derived automatically):
 
-- **Humidifying** — device is on and working toward the target (or no sensor data available)
-- **Idle** — device is on but current humidity has reached the target
-- **Off** — device is off
+- **Humidifying** - device is on and working toward the target (or no sensor data available)
+- **Idle** - device is on but current humidity has reached the target
+- **Off** - device is off
 
 **Optional sensors:**
 
-- `humidity_sensor` — external HA sensor for current humidity (updates the current humidity attribute in real time)
-- `power_sensor` — external binary sensor reflecting physical power state
+- `humidity_sensor` - external HA sensor for current humidity (updates the current humidity attribute in real time)
+- `power_sensor` - external binary sensor reflecting physical power state
 
 The availability topic is auto-derived from the command topic (`tele/<device>/LWT`) or can be set explicitly.
 
@@ -293,7 +293,7 @@ type: custom:tasmota-ir-remote-card
 entity: remote.my_tasmota_remote
 ```
 
-The card registers itself automatically when the integration loads — no Lovelace resource entry needed.
+The card registers itself automatically when the integration loads - no Lovelace resource entry needed.
 
 ### Configuration
 
@@ -321,20 +321,20 @@ extra_buttons:
 
 The card is divided into sections that appear only when the corresponding commands are configured:
 
-- **Header row** — power button (left) and cycle-input button (right), column-aligned above the VDC zone
-- **VDC zone** — Volume column | D-pad center | Channel column
-- **Number keypad** — 1–9 + 0
-- **Navigation** — back, home, menu, info, exit, settings
-- **Color buttons** — red, green, yellow, blue
-- **Sources** — one button per source; direct sources send their IR code immediately, cycle sources use the cycle logic
-- **My Buttons** — card-level extra buttons
-- **Custom** — any additional commands discovered from the entity but not in any built-in group
+- **Header row** - power button (left) and cycle-input button (right), column-aligned above the VDC zone
+- **VDC zone** - Volume column | D-pad center | Channel column
+- **Number keypad** - 1–9 + 0
+- **Navigation** - back, home, menu, info, exit, settings
+- **Color buttons** - red, green, yellow, blue
+- **Sources** - one button per source; direct sources send their IR code immediately, cycle sources use the cycle logic
+- **My Buttons** - card-level extra buttons
+- **Custom** - any additional commands discovered from the entity but not in any built-in group
 
 ### Interaction
 
-- **Tap** — sends one IR command
-- **Hold** — repeats automatically for `volume_up`, `volume_down`, `channel_up`, `channel_down` (starts after 300 ms, repeats every 200 ms)
+- **Tap** - sends one IR command
+- **Hold** - repeats automatically for `volume_up`, `volume_down`, `channel_up`, `channel_down` (starts after 300 ms, repeats every 200 ms)
 
 ### Visual editor
 
-All options are configurable through the Lovelace card editor — click the pencil icon on the card to open it.
+All options are configurable through the Lovelace card editor - click the pencil icon on the card to open it.
