@@ -251,7 +251,7 @@ The availability topic is auto-derived from the command topic (`tele/<device>/LW
 
 ## Remote
 
-Generic IR remote entity that sends named commands via `remote.send_command`. Use it with automations, scripts, the built-in **Tasmota IR Remote Card** (see below), or the [Universal Remote Card](https://github.com/Nerwyn/universal-remote-card).
+Generic IR remote entity that sends named commands via `remote.send_command`. Use it with automations, scripts, the built-in **Tasmota IR Ready Remote Card** (see below), or the [Universal Remote Card](https://github.com/Nerwyn/universal-remote-card).
 
 **Built-in command names:**
 
@@ -272,16 +272,16 @@ Generic IR remote entity that sends named commands via `remote.send_command`. Us
 
 - **Climate** - thermostat card, tile card, or any climate-compatible card
 - **Media Player** - media control card or mini media player card
-- **Remote** - use the built-in Tasmota IR Remote Card (below), the [Universal Remote Card](https://github.com/Nerwyn/universal-remote-card), or any button card calling `remote.send_command`
+- **Remote** - use the built-in Tasmota IR Ready Remote Card (below), the [Universal Remote Card](https://github.com/Nerwyn/universal-remote-card), or any button card calling `remote.send_command`
 
 When the original AC remote is used, a Tasmota IR receiver updates the climate state in Home Assistant automatically.
 
 ---
 
-## Tasmota IR Remote Card
+## Tasmota IR Ready Remote Card
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Hollako/Tasmota-IR-Ready/master/images/remote_card.png" alt="Tasmota IR Remote Card" width="360">
+  <img src="https://raw.githubusercontent.com/Hollako/Tasmota-IR-Ready/master/images/remote_card.png" alt="Tasmota IR Ready Remote Card" width="360">
 </p>
 
 A custom Lovelace card included with the integration. It reads the remote entity's configured commands and renders the appropriate buttons automatically.
