@@ -55,10 +55,60 @@ If `Vendor` is not `Unknown` and you see the `IRHVAC` key, the integration can c
 1. Go to **Settings → Devices & services**.
 2. Select **Add integration**.
 3. Search for **Tasmota IR Ready**.
-4. Choose your **Device Type**: Climate, Media Player, or Remote.
+4. Choose your **Device Type**: Climate, Media Player, Fan, Humidifier, or Remote.
 5. Fill in the required fields for your chosen device type.
 
 After the integration is created, open **Configure** on the integration entry to adjust options.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Hollako/Tasmota-IR-Ready/master/images/config_panel.png" alt="Remote configuration panel" width="100%">
+</p>
+
+---
+
+## IR Manager Panel
+
+The integration adds an **IR Manager** panel to your Home Assistant sidebar. It is the central tool for capturing, testing, and organising IR codes before filling them into your device configuration.
+
+### Learning IR codes
+
+1. Open the IR Manager panel.
+2. Select your Tasmota device's telemetry topic (e.g. `tele/<device>/RESULT`).
+3. Click **Learn** and point your original remote at the Tasmota IR receiver.
+4. Press the button you want to capture — the hex code appears automatically within 30 seconds.
+5. Copy the code into the relevant field of your device configuration.
+
+### Testing IR codes
+
+Use the **Send** function to transmit any hex code on demand directly from the panel, without saving it first. Useful for verifying a captured code actually works before configuring it.
+
+### IR Database
+
+The panel includes a built-in IR profile database and supports user-managed profiles:
+
+- **Built-in profiles** — ready-to-use hex code sets for common devices, stored inside the integration
+- **Custom profiles** — place your own JSON profiles in `/config/tasmota_ir_ready/ir_database/` and they appear alongside the built-in ones
+- **Export** — save a configured device's full IR code set as a reusable profile
+
+Profile format:
+
+```json
+{
+  "title": "Samsung TV",
+  "brand": "Samsung",
+  "model": "Generic TV",
+  "options": {
+    "device_type": "media_player",
+    "media_protocol": "NEC",
+    "media_bits": 32,
+    "media_power_data": "0xE0E040BF"
+  }
+}
+```
+
+### Flipper Zero IRDB import
+
+The panel can browse and import profiles directly from the [Flipper Zero IRDB](https://github.com/UberGuidoZ/Flipper-IRDB) repository on GitHub. Parsed signals (NEC, NECext, Samsung32, SIRC/SONY, RC5, LG) are converted automatically to Tasmota hex codes. Raw timing signals are skipped.
 
 ---
 
@@ -200,10 +250,6 @@ The availability topic is auto-derived from the command topic (`tele/<device>/LW
 ---
 
 ## Remote
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/Hollako/Tasmota-IR-Ready/master/images/config_panel.png" alt="Remote configuration panel" width="480">
-</p>
 
 Generic IR remote entity that sends named commands via `remote.send_command`. Use it with automations, scripts, the built-in **Tasmota IR Remote Card** (see below), or the [Universal Remote Card](https://github.com/Nerwyn/universal-remote-card).
 
