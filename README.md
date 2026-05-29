@@ -284,25 +284,59 @@ When the original AC remote is used, a Tasmota IR receiver updates the climate s
   <img src="https://raw.githubusercontent.com/Hollako/Tasmota-IR-Ready/master/images/remote_card.png" alt="Tasmota IR Ready Remote Card" width="360">
 </p>
 
-A custom Lovelace card included with the integration. It reads the remote entity's configured commands and renders the appropriate buttons automatically.
+A custom Lovelace card included with the integration. It reads the remote entity's configured commands and renders the appropriate buttons automatically. The card registers itself when the integration loads — no Lovelace resource entry needed.
 
-### Card type
+### Multi-remote tabs
+
+A single card can display up to **4 remotes** as tabs in the header. Each tab has its own icon, title, hidden groups, and extra buttons. Switching tabs instantly shows that remote's controls and routes all commands to its entity. An offline indicator dot appears on tabs whose entity is unavailable.
+
+**Multi-remote config (new):**
+
+```yaml
+type: custom:tasmota-ir-ready-remote-card
+remotes:
+  - entity: remote.living_room_tv
+    title: Living Room TV
+    card_icon: 📺
+  - entity: remote.soundbar
+    title: Soundbar
+    card_icon: 🔊
+    hidden_groups: [keypad, colors, channels]
+  - entity: remote.bedroom_tv
+    title: Bedroom TV
+    card_icon: 🖥
+```
+
+**Single-remote config (legacy — still works unchanged):**
 
 ```yaml
 type: custom:tasmota-ir-ready-remote-card
 entity: remote.my_tasmota_remote
+title: My Remote
+card_icon: 📺
 ```
 
-The card registers itself automatically when the integration loads - no Lovelace resource entry needed.
-
 ### Configuration
+
+#### Top-level keys
+
+| Key | Description |
+|-----|-------------|
+| `remotes` | List of up to 4 remote objects (see per-remote keys below). When present, the card shows a tab bar. |
+| `entity` | *(Legacy single-remote)* Remote entity ID. Ignored when `remotes` is set. |
+| `title` | *(Legacy single-remote)* Card title override. |
+| `card_icon` | *(Legacy single-remote)* Header icon emoji. |
+| `hidden_groups` | *(Legacy single-remote)* Button groups to hide. |
+| `extra_buttons` | *(Legacy single-remote)* Additional custom buttons. |
+
+#### Per-remote keys (inside `remotes:`)
 
 | Key | Required | Description |
 |-----|----------|-------------|
 | `entity` | ✓ | Remote entity ID (`remote.*`) |
-| `title` | | Override the card title (defaults to the entity name) |
-| `card_icon` | | Emoji icon shown in the header. Choices: 📺 TV, 📡 Satellite, 🖥 Monitor, 🎬 Projector, 🎮 Game, 🔊 Speaker, 📻 Radio, 💿 DVD, 📼 Recorder, 🎛 Remote |
-| `hidden_groups` | | List of button group IDs to hide. Groups: `power`, `volume`, `channels`, `dpad`, `keypad`, `colors`, `nav`, `sources` |
+| `title` | | Tab label (defaults to the entity friendly name) |
+| `card_icon` | | Emoji icon shown on the tab. Choices: 📺 TV · 📡 Satellite · 🖥 Monitor · 🎬 Projector · 🎮 Game · 🔊 Speaker · 📻 Radio · 💿 DVD · 📼 Recorder · 🎛 Remote |
+| `hidden_groups` | | List of button group IDs to hide: `power`, `volume`, `channels`, `dpad`, `keypad`, `colors`, `nav_aux`, `colors` |
 | `extra_buttons` | | List of additional custom buttons (see below) |
 
 ### Extra buttons
@@ -319,7 +353,7 @@ extra_buttons:
 
 ### Layout
 
-The card is divided into sections that appear only when the corresponding commands are configured:
+The card is divided into sections that appear only when the corresponding commands are configured on the entity:
 
 - **Header row** - power button (left) and cycle-input button (right), column-aligned above the VDC zone
 - **VDC zone** - Volume column | D-pad center | Channel column
@@ -337,4 +371,4 @@ The card is divided into sections that appear only when the corresponding comman
 
 ### Visual editor
 
-All options are configurable through the Lovelace card editor - click the pencil icon on the card to open it.
+All options are configurable through the Lovelace card editor — click the pencil icon on the card to open it. The editor supports adding and removing remotes, switching between them to edit each one independently, and configuring the entity, tab icon, title, hidden groups, and extra buttons per remote.
