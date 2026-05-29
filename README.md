@@ -201,6 +201,10 @@ The availability topic is auto-derived from the command topic (`tele/<device>/LW
 
 ## Remote
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Hollako/Tasmota-IR-Ready/master/images/config_panel.png" alt="Remote configuration panel" width="480">
+</p>
+
 Generic IR remote entity that sends named commands via `remote.send_command`. Use it with automations, scripts, the built-in **Tasmota IR Remote Card** (see below), or the [Universal Remote Card](https://github.com/Nerwyn/universal-remote-card).
 
 **Built-in command names:**
