@@ -290,7 +290,7 @@ A custom Lovelace card included with the integration. It reads the remote entity
 
 A single card can display up to **4 remotes** as tabs in the header. Each tab has its own icon, title, hidden groups, and extra buttons. Switching tabs instantly shows that remote's controls and routes all commands to its entity. An offline indicator dot appears on tabs whose entity is unavailable.
 
-**Multi-remote config (new):**
+**Multi-remote config:**
 
 ```yaml
 type: custom:tasmota-ir-ready-remote-card
@@ -306,16 +306,6 @@ remotes:
     title: Bedroom TV
     card_icon: 🖥
 ```
-
-**Single-remote config (legacy — still works unchanged):**
-
-```yaml
-type: custom:tasmota-ir-ready-remote-card
-entity: remote.my_tasmota_remote
-title: My Remote
-card_icon: 📺
-```
-
 ### Configuration
 
 #### Top-level keys
