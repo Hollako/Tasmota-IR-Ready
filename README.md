@@ -60,13 +60,13 @@ If `Vendor` is not `Unknown` and you see the `IRHVAC` key, the integration can c
 
 After the integration is created, open **Configure** on the integration entry to adjust options.
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/Hollako/Tasmota-IR-Ready/master/images/config_panel.png" alt="Remote configuration panel" width="100%">
-</p>
-
 ---
 
 ## IR Manager Panel
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Hollako/Tasmota-IR-Ready/master/images/config_panel.png" alt="IR Manager panel" width="100%">
+</p>
 
 The integration adds an **IR Manager** panel to your Home Assistant sidebar. It is the central tool for capturing, testing, and organising IR codes before filling them into your device configuration.
 

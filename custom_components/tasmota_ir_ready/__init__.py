@@ -16,6 +16,7 @@ from .const import (
     DATA_REMOTE_KEY,
     DEVICE_TYPE_CLIMATE,
     DEVICE_TYPE_FAN,
+    DEVICE_TYPE_HUB,
     DEVICE_TYPE_HUMIDIFIER,
     DEVICE_TYPE_MEDIA_PLAYER,
     DEVICE_TYPE_REMOTE,
@@ -52,6 +53,8 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 def _entry_platforms(entry: ConfigEntry) -> list[str]:
     """Return the Home Assistant platforms needed for this entry."""
     device_type = entry.data.get(CONF_DEVICE_TYPE, DEVICE_TYPE_CLIMATE)
+    if device_type == DEVICE_TYPE_HUB:
+        return []
     if device_type == DEVICE_TYPE_MEDIA_PLAYER:
         return ["media_player"]
     if device_type == DEVICE_TYPE_REMOTE:

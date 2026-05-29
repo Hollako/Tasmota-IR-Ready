@@ -237,6 +237,7 @@ DEVICE_TYPE_MEDIA_PLAYER = "media_player"
 DEVICE_TYPE_REMOTE = "remote"
 DEVICE_TYPE_FAN = "fan"
 DEVICE_TYPE_HUMIDIFIER = "humidifier"
+DEVICE_TYPE_HUB = "hub"
 
 ATTR_ECONO = "econo"
 ATTR_TURBO = "turbo"
