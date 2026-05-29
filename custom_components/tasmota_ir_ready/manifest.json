@@ -1,7 +1,7 @@
 {
   "domain": "tasmota_ir_ready",
   "name": "Tasmota IR Ready",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "documentation": "https://github.com/Hollako/Tasmota-IR-Ready",
   "issue_tracker": "https://github.com/Hollako/Tasmota-IR-Ready/issues",
   "homeassistant": "2024.11.0",
