@@ -151,7 +151,7 @@ Controls TVs and AV receivers using Tasmota's `IRSend` command. You configure he
 
 ## Remote
 
-Generic IR remote entity for use with automations, scripts, or the [Universal Remote Card](https://github.com/iablon/homeassistant-universal-remote-card). Sends named commands via the `remote.send_command` service.
+Generic IR remote entity that sends named commands via `remote.send_command`. Use it with automations, scripts, or the built-in **Tasmota IR Remote Card** (see below).
 
 **Built-in command names:**
 
@@ -159,16 +159,78 @@ Generic IR remote entity for use with automations, scripts, or the [Universal Re
 
 **Aliases:** `center` / `enter` / `select` / `dpad_center` → `ok`, `return` → `back`, `ch_up` / `ch_down`, `vol_up` / `vol_down`
 
-Source navigation works identically to the media player - both direct and cycle modes are supported.
+**Source modes** - both can be active simultaneously on the same remote:
+
+- **Direct** - each source button sends its own dedicated IR code immediately
+- **Cycle** - a single cycle IR code steps through inputs; the integration tracks the current position and presses the button the right number of times to reach the target. A dedicated cycle button appears on the card
+
+**Custom commands** - add extra IR codes from the integration's Configure panel. They appear automatically on the card with the name you gave them.
 
 ---
 
 ## Dashboard
 
-Add your entities to a Home Assistant dashboard:
-
 - **Climate** - thermostat card, tile card, or any climate-compatible card
 - **Media Player** - media control card or mini media player card
-- **Remote** - Universal Remote Card or button cards calling `remote.send_command`
+- **Remote** - use the built-in Tasmota IR Remote Card (below), the [Universal Remote Card](https://github.com/iablon/homeassistant-universal-remote-card), or any button card calling `remote.send_command`
 
 When the original AC remote is used, a Tasmota IR receiver updates the climate state in Home Assistant automatically.
+
+---
+
+## Tasmota IR Remote Card
+
+A custom Lovelace card included with the integration. It reads the remote entity's configured commands and renders the appropriate buttons automatically.
+
+### Card type
+
+```yaml
+type: custom:tasmota-ir-remote-card
+entity: remote.my_tasmota_remote
+```
+
+The card registers itself automatically when the integration loads — no Lovelace resource entry needed.
+
+### Configuration
+
+| Key | Required | Description |
+|-----|----------|-------------|
+| `entity` | ✓ | Remote entity ID (`remote.*`) |
+| `title` | | Override the card title (defaults to the entity name) |
+| `card_icon` | | Emoji icon shown in the header. Choices: 📺 TV, 📡 Satellite, 🖥 Monitor, 🎬 Projector, 🎮 Game, 🔊 Speaker, 📻 Radio, 💿 DVD, 📼 Recorder, 🎛 Remote |
+| `hidden_groups` | | List of button group IDs to hide. Groups: `power`, `volume`, `channels`, `dpad`, `keypad`, `colors`, `nav`, `sources` |
+| `extra_buttons` | | List of additional custom buttons (see below) |
+
+### Extra buttons
+
+```yaml
+extra_buttons:
+  - label: Netflix
+    command: netflix
+    color: "#e50914"
+  - label: YouTube
+    command: youtube
+    color: "#ff0000"
+```
+
+### Layout
+
+The card is divided into sections that appear only when the corresponding commands are configured:
+
+- **Header row** — power button (left) and cycle-input button (right), column-aligned above the VDC zone
+- **VDC zone** — Volume column | D-pad center | Channel column
+- **Number keypad** — 1–9 + 0
+- **Navigation** — back, home, menu, info, exit, settings
+- **Color buttons** — red, green, yellow, blue
+- **Sources** — one button per source; direct sources send their IR code immediately, cycle sources use the cycle logic
+- **My Buttons** — card-level extra buttons
+- **Custom** — any additional commands discovered from the entity but not in any built-in group
+
+### Interaction
+
+- **Tap** — sends one IR command
+- **Hold** — repeats automatically for `volume_up`, `volume_down`, `channel_up`, `channel_down` (starts after 300 ms, repeats every 200 ms)
+
+### Visual editor
+
+All options are configurable through the Lovelace card editor — click the pencil icon on the card to open it.
