@@ -1,4 +1,5 @@
 """The Tasmota IR Ready component."""
+import json
 from pathlib import Path
 
 from homeassistant.components import panel_custom
@@ -24,29 +25,130 @@ from .const import (
 )
 from .websocket_api import async_register_websocket_commands
 
+_FRONTEND_SETUP_KEY = f"{DOMAIN}_frontend_setup"
+
+# Read version from manifest once at import time for cache-busting URLs.
+try:
+    _VERSION = json.loads(
+        (Path(__file__).parent / "manifest.json").read_text(encoding="utf-8")
+    ).get("version", "1")
+except Exception:  # noqa: BLE001
+    _VERSION = "1"
+
+
+async def _async_ensure_lovelace_resource(hass: HomeAssistant, url: str) -> None:
+    """Persist *url* in Lovelace resource storage so the card loads on every dashboard.
+
+    Falls back silently when:
+    - the lovelace component isn't available / not yet initialised
+    - the dashboard is in YAML mode (resources not writable via storage)
+    - any other unexpected error
+
+    When the version in the URL changes (manifest bump), the stored entry is
+    updated in-place so old cache-busted URLs don't accumulate.
+    """
+    try:
+        from homeassistant.components.lovelace.resources import (  # noqa: PLC0415
+            ResourceStorageCollection,
+        )
+    except ImportError:
+        return
+
+    lovelace = hass.data.get("lovelace")
+    if not lovelace:
+        return
+    resources = getattr(lovelace, "resources", None)
+    if not isinstance(resources, ResourceStorageCollection):
+        return  # YAML-mode dashboard — user manages resources manually
+
+    await resources.async_load()
+    base_url = url.split("?")[0]
+
+    for item in list(resources.async_items()):
+        if item.get("url", "").split("?")[0] == base_url:
+            if item["url"] != url:
+                # Version changed — update the stored entry in-place
+                await resources.async_update_item(
+                    item["id"], {"res_type": "module", "url": url}
+                )
+            return  # Already present (correct version or just updated)
+
+    # First install — add the resource
+    await resources.async_create_item({"res_type": "module", "url": url})
+
+
+async def _async_setup_frontend(hass: HomeAssistant) -> None:
+    """Register static path, sidebar panel, JS resource, and WebSocket API.
+
+    Guarded by hass.data so it runs at most once per HA session regardless of
+    how many config entries trigger async_setup_entry.
+    """
+    if hass.data.get(_FRONTEND_SETUP_KEY):
+        return
+    hass.data[_FRONTEND_SETUP_KEY] = True
+
+    www_dir = Path(__file__).parent / "www"
+
+    # Register the static HTTP path that serves the www/ directory.
+    # Wrapped in try/except because HA raises ValueError if the path has
+    # already been registered (e.g. if async_setup ran before an entry reload).
+    try:
+        await hass.http.async_register_static_paths([
+            StaticPathConfig(f"/{DOMAIN}_panel", str(www_dir), cache_headers=False)
+        ])
+    except ValueError:
+        pass  # Already registered — harmless, keep going.
+
+    # Register the Lovelace remote card so it is available on all dashboards
+    # without requiring a manual resource entry.
+    #
+    # Two registration methods are used together for maximum reliability:
+    #
+    # 1. add_extra_js_url — injects the URL into the in-memory extra-module list.
+    #    Fast, but in-memory only; lost on HA restart if setup doesn't re-run.
+    #
+    # 2. _async_ensure_lovelace_resource — writes the URL into the persistent
+    #    Lovelace resource storage (.storage/lovelace_resources).  Survives
+    #    restarts, works for all dashboard types, and is the only method that
+    #    reliably fixes "Custom element doesn't exist" in all HA configurations.
+    #
+    # The ?v= query parameter forces a fresh browser fetch whenever the
+    # integration version changes, preventing stale-cache errors.
+    card_url = f"/{DOMAIN}_panel/remote_card.js?v={_VERSION}"
+    add_extra_js_url(hass, card_url)
+    await _async_ensure_lovelace_resource(hass, card_url)
+
+    try:
+        await panel_custom.async_register_panel(
+            hass,
+            webcomponent_name="tasmota-ir-ready-panel",
+            sidebar_title="IR Manager",
+            sidebar_icon="mdi:remote",
+            frontend_url_path="tasmota-ir-ready",
+            module_url=f"/{DOMAIN}_panel/panel.js?v={_VERSION}",
+            embed_iframe=False,
+            require_admin=False,
+        )
+    except Exception:  # noqa: BLE001
+        pass  # Panel already registered — harmless.
+
+    async_register_websocket_commands(hass)
+
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
-    """Register static path, sidebar panel, and WebSocket commands."""
-    www_dir = Path(__file__).parent / "www"
-    await hass.http.async_register_static_paths([
-        StaticPathConfig(f"/{DOMAIN}_panel", str(www_dir), cache_headers=False)
-    ])
+    """Called once per HA startup when config entries exist for this domain."""
+    await _async_setup_frontend(hass)
 
-    # Register the Lovelace remote card so it's available on all dashboards
-    # without requiring a manual resource entry.
-    add_extra_js_url(hass, f"/{DOMAIN}_panel/remote_card.js")
+    # Remove legacy "hub" entries created by older versions of the integration.
+    # These were placeholder entries used to force async_setup to run on first
+    # install — they are no longer needed and appear as broken/empty entries
+    # in the integrations UI.
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        if entry.data.get(CONF_DEVICE_TYPE) == DEVICE_TYPE_HUB:
+            hass.async_create_task(
+                hass.config_entries.async_remove(entry.entry_id)
+            )
 
-    await panel_custom.async_register_panel(
-        hass,
-        webcomponent_name="tasmota-ir-ready-panel",
-        sidebar_title="IR Manager",
-        sidebar_icon="mdi:remote",
-        frontend_url_path="tasmota-ir-ready",
-        module_url=f"/{DOMAIN}_panel/panel.js",
-        embed_iframe=False,
-        require_admin=False,
-    )
-    async_register_websocket_commands(hass)
     return True
 
 
@@ -69,9 +171,15 @@ def _entry_platforms(entry: ConfigEntry) -> list[str]:
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Tasmota IRHVAC from a config entry.
 
+    Also calls _async_setup_frontend so that the sidebar panel and remote card
+    JS are registered even on a first-ever install where async_setup may not
+    have been reached before this entry was created.
+
     Climate is set up first so the entity is stored in hass.data before the
     switch platform tries to look it up.
     """
+    await _async_setup_frontend(hass)
+
     for platform in _entry_platforms(entry):
         await hass.config_entries.async_forward_entry_setups(entry, [platform])
     entry.async_on_unload(entry.add_update_listener(_async_update_options))

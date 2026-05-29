@@ -289,7 +289,7 @@ A custom Lovelace card included with the integration. It reads the remote entity
 ### Card type
 
 ```yaml
-type: custom:tasmota-ir-remote-card
+type: custom:tasmota-ir-ready-remote-card
 entity: remote.my_tasmota_remote
 ```
 

@@ -619,19 +619,6 @@ class TasmotaIrhvacConfigFlow(ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> dict:
         """Initial setup step - choose the IR device type."""
-        # On first-ever install there are no entries yet. Create a hub entry
-        # immediately so the integration loads and the IR Manager panel appears
-        # in the sidebar before the user configures any device.
-        existing = self._async_current_entries(include_ignore=False)
-        has_hub = any(
-            e.data.get(CONF_DEVICE_TYPE) == DEVICE_TYPE_HUB for e in existing
-        )
-        if not existing or not has_hub:
-            return self.async_create_entry(
-                title="IR Manager",
-                data={CONF_DEVICE_TYPE: DEVICE_TYPE_HUB},
-            )
-
         errors: dict[str, str] = {}
 
         if user_input is not None:

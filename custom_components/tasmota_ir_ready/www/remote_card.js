@@ -1,22 +1,34 @@
 /**
- * Tasmota IR Ready — Remote Card v2.0
+ * Tasmota IR Ready — Remote Card v3.0
  *
- * Enhanced remote-control Lovelace card with a visual UI editor,
- * configurable button groups, extra user-defined buttons, and
- * hold-to-repeat for volume & channel buttons.
+ * Multi-remote Lovelace card: up to 4 remotes shown as tabs in the header.
+ * Full backward compat — single `entity:` config still works unchanged.
  *
- * Card config schema:
- *   type:          custom:tasmota-ir-remote-card
- *   entity:        remote.my_tasmota_remote   # required
- *   title:         Living Room TV             # optional — overrides entity name
- *   hidden_groups: [keypad, colors]           # optional — group IDs to hide
- *   extra_buttons:                            # optional — card-level custom buttons
- *     - label:   Netflix
+ * Single-remote config (legacy — still works):
+ *   type:          custom:tasmota-ir-ready-remote-card
+ *   entity:        remote.living_room_tv
+ *   title:         Living Room TV
+ *   card_icon:     📺
+ *   hidden_groups: [keypad, colors]
+ *   extra_buttons:
+ *     - label: Netflix
  *       command: netflix
- *       color:   "#e50914"
+ *       color:  "#e50914"
+ *
+ * Multi-remote config (new — up to 4 remotes):
+ *   type: custom:tasmota-ir-ready-remote-card
+ *   remotes:
+ *     - entity:        remote.living_room_tv
+ *       title:         Living Room TV
+ *       card_icon:     📺
+ *     - entity:        remote.soundbar
+ *       title:         Soundbar
+ *       card_icon:     🔊
+ *       hidden_groups: [keypad, colors, channels]
  */
 
-const CARD_VERSION = "2.0.0";
+const CARD_VERSION = "3.0.1";
+const MAX_REMOTES  = 4;
 
 // ── Button group definitions ──────────────────────────────────────────────────
 
@@ -99,7 +111,6 @@ const GROUP_DEFS = [
   },
 ];
 
-// Commands that belong to the fixed groups (not shown in "Custom" section)
 const KNOWN_CMDS = new Set([
   "power", "power_on", "power_off",
   "volume_up", "volume_down", "mute",
@@ -112,49 +123,90 @@ const KNOWN_CMDS = new Set([
   "source_cycle",
 ]);
 
-// Commands that support hold-to-repeat when button is held
 const HOLD_CMDS = new Set(["volume_up", "volume_down", "channel_up", "channel_down"]);
 
 const CARD_ICONS = [
-  { label: "TV",          icon: "📺" },
-  { label: "Satellite",   icon: "📡" },
-  { label: "Monitor",     icon: "🖥"  },
-  { label: "Projector",   icon: "🎬" },
-  { label: "Game",        icon: "🎮" },
-  { label: "Speaker",     icon: "🔊" },
-  { label: "Radio",       icon: "📻" },
+  { label: "TV",            icon: "📺" },
+  { label: "Satellite",     icon: "📡" },
+  { label: "Monitor",       icon: "🖥"  },
+  { label: "Projector",     icon: "🎬" },
+  { label: "Game",          icon: "🎮" },
+  { label: "Speaker",       icon: "🔊" },
+  { label: "Radio",         icon: "📻" },
   { label: "DVD / Blu-ray", icon: "💿" },
-  { label: "Recorder",    icon: "📼" },
-  { label: "Remote",      icon: "🎛"  },
+  { label: "Recorder",      icon: "📼" },
+  { label: "Remote",        icon: "🎛"  },
 ];
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Normalise any card config into the canonical { remotes: [...] } shape. */
+function _normaliseConfig(config) {
+  if (Array.isArray(config.remotes) && config.remotes.length) {
+    return config.remotes.slice(0, MAX_REMOTES).map(r => ({
+      entity:        r.entity        || "",
+      title:         r.title         || "",
+      card_icon:     r.card_icon     || "",
+      hidden_groups: r.hidden_groups || [],
+      extra_buttons: r.extra_buttons || [],
+    }));
+  }
+  // Legacy single-remote format
+  return [{
+    entity:        config.entity        || "",
+    title:         config.title         || "",
+    card_icon:     config.card_icon     || "",
+    hidden_groups: config.hidden_groups || [],
+    extra_buttons: config.extra_buttons || [],
+  }];
+}
 
 // ── Visual card editor ────────────────────────────────────────────────────────
 
 class TasmotaIrRemoteCardEditor extends HTMLElement {
   constructor() {
     super();
-    this._config = {};
-    this._hass   = null;
-    this._ready  = false;
+    this._config    = {};
+    this._hass      = null;
+    this._ready     = false;
+    this._editTab   = 0;   // which remote slot is being edited
+    this._pickers   = {};  // entity picker elements keyed by index
   }
 
   setConfig(config) {
-    this._config = { ...config };
-    if (this._ready) this._syncValues();
+    const remotes = _normaliseConfig(config);
+    this._config  = { ...config, remotes };
+    // Clamp editing tab in case a remote was removed
+    if (this._editTab >= remotes.length) this._editTab = remotes.length - 1;
+    if (this._ready) this._build();
   }
 
   set hass(hass) {
     this._hass = hass;
     if (!this._ready) this._build();
-    if (this._entityPicker) this._entityPicker.hass = hass;
+    // Update all mounted entity pickers
+    Object.values(this._pickers).forEach(p => { if (p) p.hass = hass; });
   }
 
   // ── Build ──────────────────────────────────────────────────────────────────
 
   _build() {
-    this._ready = true;
-    const hidden = this._config.hidden_groups || [];
-    const extra  = this._config.extra_buttons || [];
+    this._ready  = true;
+    this._pickers = {};
+    const remotes = this._config.remotes || [];
+    const i       = this._editTab;
+    const cur     = remotes[i] || {};
+    const hidden  = cur.hidden_groups || [];
+    const extra   = cur.extra_buttons || [];
+
+    // ── Remote selector tabs ──────────────────────────────────────────────
+    const selectorTabs = remotes.map((r, idx) => {
+      const lbl = r.title || `Remote ${idx + 1}`;
+      return `<button class="ed-rtab${idx === i ? " active" : ""}" data-rtab="${idx}">${this._esc(lbl)}</button>`;
+    }).join("");
+
+    const canAdd    = remotes.length < MAX_REMOTES;
+    const canRemove = remotes.length > 1;
 
     this.innerHTML = `
 <style>
@@ -184,136 +236,149 @@ class TasmotaIrRemoteCardEditor extends HTMLElement {
   .ed-input:focus { border-color: var(--primary-color, #03a9f4); }
   .ed-divider { border: none; border-top: 1px solid var(--divider-color, rgba(0,0,0,0.1)); margin: 18px 0; }
   .ed-check-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 5px 0;
-    font-size: 0.9em;
-    cursor: pointer;
+    display: flex; align-items: center; gap: 10px;
+    padding: 5px 0; font-size: 0.9em; cursor: pointer;
   }
   .ed-check-row input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--primary-color, #03a9f4); cursor: pointer; }
+  /* Remote tabs */
+  .ed-rtabs {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;
+  }
+  .ed-rtab {
+    padding: 5px 14px;
+    border: 1.5px solid var(--divider-color, rgba(0,0,0,0.18));
+    border-radius: 16px;
+    background: none;
+    cursor: pointer;
+    font-size: 0.83em;
+    font-family: inherit;
+    color: var(--secondary-text-color);
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .ed-rtab.active {
+    background: var(--primary-color, #03a9f4);
+    border-color: var(--primary-color, #03a9f4);
+    color: #fff;
+    font-weight: 600;
+  }
+  .ed-rtab-actions { display: flex; gap: 8px; margin-top: 6px; }
+  .ed-btn-add-remote {
+    padding: 5px 14px;
+    border: 1.5px dashed var(--primary-color, #03a9f4);
+    border-radius: 16px;
+    background: none;
+    cursor: pointer;
+    font-size: 0.83em;
+    font-family: inherit;
+    color: var(--primary-color, #03a9f4);
+    transition: background 0.15s;
+  }
+  .ed-btn-add-remote:hover { background: rgba(3,169,244,0.08); }
+  .ed-btn-rm-remote {
+    padding: 5px 12px;
+    border: 1.5px solid var(--error-color, #f44336);
+    border-radius: 16px;
+    background: none;
+    cursor: pointer;
+    font-size: 0.83em;
+    font-family: inherit;
+    color: var(--error-color, #f44336);
+    transition: background 0.15s;
+  }
+  .ed-btn-rm-remote:hover { background: rgba(244,67,54,0.08); }
+  /* Extra buttons */
   .ed-extra-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 8px;
+    display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
     background: var(--secondary-background-color, rgba(0,0,0,0.03));
-    border-radius: 8px;
-    padding: 6px 8px;
+    border-radius: 8px; padding: 6px 8px;
   }
   .ed-extra-item input {
-    flex: 1;
-    padding: 6px 8px;
+    flex: 1; padding: 6px 8px;
     border: 1px solid var(--divider-color, #ccc);
     border-radius: 6px;
     background: var(--card-background-color, #fff);
     color: var(--primary-text-color);
-    font-size: 0.85em;
-    min-width: 0;
-    outline: none;
+    font-size: 0.85em; min-width: 0; outline: none;
   }
   .ed-extra-item input[data-f="color"] {
-    flex: 0 0 36px;
-    padding: 2px;
-    height: 32px;
-    cursor: pointer;
-    border-radius: 4px;
+    flex: 0 0 36px; padding: 2px; height: 32px; cursor: pointer; border-radius: 4px;
   }
   .ed-btn-rm {
-    flex: 0 0 auto;
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: var(--error-color, #f44336);
-    font-size: 1.1em;
-    padding: 2px 6px;
-    border-radius: 4px;
-    line-height: 1;
+    flex: 0 0 auto; background: none; border: none; cursor: pointer;
+    color: var(--error-color, #f44336); font-size: 1.1em;
+    padding: 2px 6px; border-radius: 4px; line-height: 1;
   }
   .ed-btn-rm:hover { background: rgba(244,67,54,0.1); }
   .ed-btn-add {
-    width: 100%;
-    margin-top: 4px;
-    padding: 8px 14px;
+    width: 100%; margin-top: 4px; padding: 8px 14px;
     border: 1.5px dashed var(--primary-color, #03a9f4);
-    border-radius: 8px;
-    background: none;
+    border-radius: 8px; background: none;
     color: var(--primary-color, #03a9f4);
-    cursor: pointer;
-    font-size: 0.88em;
-    font-family: inherit;
+    cursor: pointer; font-size: 0.88em; font-family: inherit;
     transition: background 0.15s;
   }
   .ed-btn-add:hover { background: rgba(3,169,244,0.08); }
   .ed-extra-header {
-    display: grid;
-    grid-template-columns: 1fr 1fr 36px 28px;
-    gap: 6px;
-    padding: 0 8px 4px;
-    font-size: 0.75em;
-    color: var(--secondary-text-color);
-    font-weight: 500;
+    display: grid; grid-template-columns: 1fr 1fr 36px 28px;
+    gap: 6px; padding: 0 8px 4px;
+    font-size: 0.75em; color: var(--secondary-text-color); font-weight: 500;
   }
-  /* Fallback outlined text field (mirrors MDC outlined style) */
-  .mdc-field {
-    position: relative;
-    width: 100%;
-    margin-top: 4px;
-  }
+  .mdc-field { position: relative; width: 100%; margin-top: 4px; }
   .mdc-field input {
-    width: 100%;
-    box-sizing: border-box;
-    height: 56px;
+    width: 100%; box-sizing: border-box; height: 56px;
     padding: 20px 16px 6px;
     border: 1px solid var(--outline-color, rgba(128,128,128,0.5));
-    border-radius: 4px;
-    background: transparent;
-    color: var(--primary-text-color);
-    font-size: 1rem;
-    font-family: inherit;
-    outline: none;
-    transition: border-color 0.15s;
+    border-radius: 4px; background: transparent;
+    color: var(--primary-text-color); font-size: 1rem;
+    font-family: inherit; outline: none; transition: border-color 0.15s;
     caret-color: var(--primary-color, #03a9f4);
   }
-  .mdc-field input:focus {
-    border: 2px solid var(--primary-color, #03a9f4);
-    padding: 20px 15px 6px;
-  }
+  .mdc-field input:focus { border: 2px solid var(--primary-color, #03a9f4); padding: 20px 15px 6px; }
   .mdc-field label {
-    position: absolute;
-    left: 16px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 1rem;
-    color: var(--secondary-text-color);
-    pointer-events: none;
+    position: absolute; left: 16px; top: 50%;
+    transform: translateY(-50%); font-size: 1rem;
+    color: var(--secondary-text-color); pointer-events: none;
     transition: top 0.15s, font-size 0.15s, color 0.15s, transform 0.15s;
-    padding: 0 2px;
-    background: var(--card-background-color, #fff);
+    padding: 0 2px; background: var(--card-background-color, #fff);
   }
   .mdc-field input:focus ~ label,
   .mdc-field input:not(:placeholder-shown) ~ label {
-    top: 0;
-    transform: translateY(-50%);
-    font-size: 0.75rem;
+    top: 0; transform: translateY(-50%); font-size: 0.75rem;
     color: var(--primary-color, #03a9f4);
   }
 </style>
 <div class="ed">
+
+  <!-- Remote selector -->
   <div class="ed-section">
-    <label class="ed-lbl">Entity</label>
+    <label class="ed-lbl">Remotes (${remotes.length} / ${MAX_REMOTES})</label>
+    <div class="ed-rtabs">${selectorTabs}</div>
+    <div class="ed-rtab-actions">
+      ${canAdd    ? `<button class="ed-btn-add-remote" id="btn-add-remote">＋ Add Remote</button>` : ""}
+      ${canRemove ? `<button class="ed-btn-rm-remote"  id="btn-rm-remote">✕ Remove Remote ${i + 1}</button>` : ""}
+    </div>
+  </div>
+
+  <hr class="ed-divider">
+
+  <!-- Per-remote fields -->
+  <div class="ed-section">
+    <label class="ed-lbl">Entity — Remote ${i + 1}</label>
     <div id="entity-slot"></div>
   </div>
 
   <div class="ed-section">
-    <label class="ed-lbl">Card Title (optional)</label>
-    <input id="title-inp" class="ed-input" type="text" placeholder="e.g. Living Room TV" value="${this._esc(this._config.title || "")}">
+    <label class="ed-lbl">Tab Title (optional)</label>
+    <input id="title-inp" class="ed-input" type="text"
+           placeholder="e.g. Living Room TV"
+           value="${this._esc(cur.title || "")}">
   </div>
 
   <div class="ed-section">
-    <label class="ed-lbl">Card Icon</label>
+    <label class="ed-lbl">Tab Icon</label>
     <select id="icon-sel" class="ed-input">
-      ${CARD_ICONS.map(o => `<option value="${o.icon}" ${this._config.card_icon === o.icon ? "selected" : ""}>${o.icon} ${o.label}</option>`).join("")}
+      ${CARD_ICONS.map(o => `<option value="${o.icon}" ${cur.card_icon === o.icon ? "selected" : ""}>${o.icon} ${o.label}</option>`).join("")}
     </select>
   </div>
 
@@ -335,52 +400,97 @@ class TasmotaIrRemoteCardEditor extends HTMLElement {
     <div class="ed-extra-header">
       <span>Label</span><span>Command</span><span>Color</span><span></span>
     </div>
-    <div id="extra-list">${extra.map((b, i) => this._extraHtml(b, i)).join("")}</div>
-    <button class="ed-btn-add" id="btn-add">＋ Add Button</button>
+    <div id="extra-list">${extra.map((b, bi) => this._extraHtml(b, bi)).join("")}</div>
+    <button class="ed-btn-add" id="btn-add-extra">＋ Add Button</button>
   </div>
+
 </div>`;
 
-    // ha-selector is the correct HA component for card editors
-    this._entityPicker = document.createElement("ha-selector");
-    this._entityPicker.hass     = this._hass;
-    this._entityPicker.label    = "Entity";
-    this._entityPicker.selector = { entity: { domain: "remote" } };
-    this._entityPicker.value    = this._config.entity || "";
-    this._entityPicker.addEventListener("value-changed", e => {
-      this._emit({ ...this._config, entity: e.detail.value });
+    // ── Entity picker ──────────────────────────────────────────────────────
+    const picker = document.createElement("ha-selector");
+    picker.hass     = this._hass;
+    picker.label    = "Entity";
+    picker.selector = { entity: { domain: "remote" } };
+    picker.value    = cur.entity || "";
+    picker.addEventListener("value-changed", e => {
+      this._updateCur({ entity: e.detail.value });
     });
-    this.querySelector("#entity-slot").appendChild(this._entityPicker);
+    this._pickers[i] = picker;
+    this.querySelector("#entity-slot").appendChild(picker);
 
-    // Title
-    this.querySelector("#title-inp").addEventListener("change", e => {
-      const val = e.target.value.trim();
-      const c = { ...this._config };
-      if (val) c.title = val; else delete c.title;
-      this._emit(c);
-    });
-
-    // Icon picker
-    this.querySelector("#icon-sel").addEventListener("change", e => {
-      this._emit({ ...this._config, card_icon: e.target.value });
-    });
-
-    // Group checkboxes
-    this.querySelectorAll("[data-grp]").forEach(cb => {
-      cb.addEventListener("change", () => {
-        const hidden = [...this.querySelectorAll("[data-grp]:checked")].map(el => el.dataset.grp);
-        this._emit({ ...this._config, hidden_groups: hidden.length ? hidden : [] });
+    // ── Remote tab buttons ─────────────────────────────────────────────────
+    this.querySelectorAll("[data-rtab]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        this._editTab = parseInt(btn.dataset.rtab);
+        this._build();
       });
     });
 
-    // Add button
-    this.querySelector("#btn-add").addEventListener("click", () => {
-      const extra = [...(this._config.extra_buttons || []), { label: "", command: "", color: "#607d8b" }];
-      this._config = { ...this._config, extra_buttons: extra };
-      this._rebuildExtra();
+    // ── Add / Remove remote ────────────────────────────────────────────────
+    this.querySelector("#btn-add-remote")?.addEventListener("click", () => {
+      const remotes = [...(this._config.remotes || [])];
+      if (remotes.length >= MAX_REMOTES) return;
+      remotes.push({ entity: "", title: "", card_icon: "", hidden_groups: [], extra_buttons: [] });
+      this._config = { ...this._config, remotes };
+      this._editTab = remotes.length - 1;
       this._emit(this._config);
+      this._build();
     });
 
+    this.querySelector("#btn-rm-remote")?.addEventListener("click", () => {
+      const remotes = [...(this._config.remotes || [])];
+      if (remotes.length <= 1) return;
+      remotes.splice(this._editTab, 1);
+      if (this._editTab >= remotes.length) this._editTab = remotes.length - 1;
+      this._config = { ...this._config, remotes };
+      this._emit(this._config);
+      this._build();
+    });
+
+    // ── Title ──────────────────────────────────────────────────────────────
+    this.querySelector("#title-inp").addEventListener("change", e => {
+      this._updateCur({ title: e.target.value.trim() });
+    });
+
+    // ── Icon picker ────────────────────────────────────────────────────────
+    this.querySelector("#icon-sel").addEventListener("change", e => {
+      this._updateCur({ card_icon: e.target.value });
+    });
+
+    // ── Hidden group checkboxes ────────────────────────────────────────────
+    this.querySelectorAll("[data-grp]").forEach(cb => {
+      cb.addEventListener("change", () => {
+        const hidden = [...this.querySelectorAll("[data-grp]:checked")].map(el => el.dataset.grp);
+        this._updateCur({ hidden_groups: hidden });
+      });
+    });
+
+    // ── Extra buttons ──────────────────────────────────────────────────────
+    this.querySelector("#btn-add-extra").addEventListener("click", () => {
+      const cur    = this._config.remotes[this._editTab];
+      const extra  = [...(cur.extra_buttons || []), { label: "", command: "", color: "#607d8b" }];
+      this._updateCur({ extra_buttons: extra });
+      this._rebuildExtra();
+    });
     this._bindExtra();
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  /** Update a field in the currently-editing remote and emit. */
+  _updateCur(patch) {
+    const remotes = [...(this._config.remotes || [])];
+    remotes[this._editTab] = { ...remotes[this._editTab], ...patch };
+    this._config = { ...this._config, remotes };
+    this._emit(this._config);
+    // Refresh the remote-selector tab labels if title changed
+    if ("title" in patch) {
+      this.querySelectorAll("[data-rtab]").forEach(btn => {
+        const idx = parseInt(btn.dataset.rtab);
+        const r   = remotes[idx];
+        btn.textContent = r.title || `Remote ${idx + 1}`;
+      });
+    }
   }
 
   _extraHtml(b, i) {
@@ -395,43 +505,33 @@ class TasmotaIrRemoteCardEditor extends HTMLElement {
   _rebuildExtra() {
     const list = this.querySelector("#extra-list");
     if (!list) return;
-    list.innerHTML = (this._config.extra_buttons || []).map((b, i) => this._extraHtml(b, i)).join("");
+    const extra = this._config.remotes[this._editTab]?.extra_buttons || [];
+    list.innerHTML = extra.map((b, i) => this._extraHtml(b, i)).join("");
     this._bindExtra();
   }
 
   _bindExtra() {
     this.querySelectorAll(".ed-extra-item").forEach(row => {
-      const i = parseInt(row.dataset.i);
+      const idx = parseInt(row.dataset.i);
       const update = () => {
-        const extra = [...(this._config.extra_buttons || [])];
-        extra[i] = {
+        const cur   = this._config.remotes[this._editTab];
+        const extra = [...(cur.extra_buttons || [])];
+        extra[idx]  = {
           label:   row.querySelector("[data-f=label]").value.trim(),
           command: row.querySelector("[data-f=command]").value.trim(),
           color:   row.querySelector("[data-f=color]").value,
         };
-        this._config = { ...this._config, extra_buttons: extra };
-        this._emit(this._config);
+        this._updateCur({ extra_buttons: extra });
       };
       row.querySelectorAll("input").forEach(inp => inp.addEventListener("change", update));
       row.querySelector(".ed-btn-rm").addEventListener("click", () => {
-        const extra = [...(this._config.extra_buttons || [])];
-        extra.splice(i, 1);
-        this._config = { ...this._config, extra_buttons: extra };
+        const cur   = this._config.remotes[this._editTab];
+        const extra = [...(cur.extra_buttons || [])];
+        extra.splice(idx, 1);
+        this._updateCur({ extra_buttons: extra });
         this._rebuildExtra();
-        this._emit(this._config);
       });
     });
-  }
-
-  _syncValues() {
-    if (this._entityPicker) this._entityPicker.value = this._config.entity || "";
-    const titleEl = this.querySelector("#title-inp");
-    if (titleEl) titleEl.value = this._config.title || "";
-    const hidden = this._config.hidden_groups || [];
-    this.querySelectorAll("[data-grp]").forEach(cb => {
-      cb.checked = hidden.includes(cb.dataset.grp);
-    });
-    this._rebuildExtra();
   }
 
   _emit(config) {
@@ -450,7 +550,9 @@ class TasmotaIrRemoteCardEditor extends HTMLElement {
   }
 }
 
-customElements.define("tasmota-ir-remote-card-editor", TasmotaIrRemoteCardEditor);
+if (!customElements.get("tasmota-ir-ready-remote-card-editor")) {
+  customElements.define("tasmota-ir-ready-remote-card-editor", TasmotaIrRemoteCardEditor);
+}
 
 // ── Card element ──────────────────────────────────────────────────────────────
 
@@ -460,6 +562,8 @@ class TasmotaIrRemoteCard extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._hass        = null;
     this._config      = null;
+    this._remotes     = [];
+    this._activeTab   = 0;
     this._lastKey     = null;
     this._holdTimer   = null;
     this._holdInterval= null;
@@ -468,33 +572,50 @@ class TasmotaIrRemoteCard extends HTMLElement {
   // ── Lovelace API ──────────────────────────────────────────────────────────
 
   static getConfigElement() {
-    return document.createElement("tasmota-ir-remote-card-editor");
+    return document.createElement("tasmota-ir-ready-remote-card-editor");
   }
 
   static getStubConfig() {
-    return { entity: "", hidden_groups: [], extra_buttons: [] };
+    return {
+      remotes: [{ entity: "", hidden_groups: [], extra_buttons: [] }],
+    };
   }
 
   setConfig(config) {
-    if (!config.entity) throw new Error("Please set 'entity' in the card config.");
-    this._config = { hidden_groups: [], extra_buttons: [], ...config };
-    if (this._hass) this._render(this._hass.states[this._config.entity]);
+    const remotes = _normaliseConfig(config);
+    this._config  = config;
+    this._remotes = remotes;
+    // Keep active tab in valid range
+    if (this._activeTab >= remotes.length) this._activeTab = 0;
+    // Never throw here — _renderAll shows an inline "entity not found" state
+    // for unconfigured / empty-entity cards without triggering HA's red
+    // "configuration error" overlay.
+    if (this._hass) this._renderAll();
   }
 
   set hass(hass) {
     this._hass = hass;
-    const st  = hass.states[this._config?.entity];
-    const key = [
-      st?.state,
-      JSON.stringify(st?.attributes.configured_commands),
-      JSON.stringify(st?.attributes.source_list),
-      st?.attributes.source_index,
-      JSON.stringify(this._config?.hidden_groups),
-      JSON.stringify(this._config?.extra_buttons),
-    ].join("|");
+    if (!this._config) return;
+
+    // Build a cache key covering all remotes' state + active tab + config
+    const stateKey = this._remotes.map(r => {
+      const st = hass.states[r.entity];
+      return [
+        st?.state,
+        JSON.stringify(st?.attributes.configured_commands),
+        JSON.stringify(st?.attributes.source_list),
+        st?.attributes.source_index,
+      ].join("|");
+    }).join("§");
+
+    const cfgKey = this._remotes.map(r =>
+      JSON.stringify({ h: r.hidden_groups, e: r.extra_buttons })
+    ).join("§");
+
+    const key = `${stateKey}§§${cfgKey}§§${this._activeTab}`;
     if (key !== this._lastKey) {
       this._lastKey = key;
-      this._render(st);
+      this._renderAll();
     }
   }
 
@@ -503,10 +624,11 @@ class TasmotaIrRemoteCard extends HTMLElement {
   // ── Command sending ───────────────────────────────────────────────────────
 
   _send(command) {
-    if (!this._hass || !this._config) return;
+    if (!this._hass) return;
+    const remote = this._remotes[this._activeTab] || this._remotes[0];
     this._hass.callService("remote", "send_command", {
-      entity_id: this._config.entity,
-      command: String(command),
+      entity_id: remote.entity,
+      command:   String(command),
     });
   }
 
@@ -522,47 +644,107 @@ class TasmotaIrRemoteCard extends HTMLElement {
   _cancelHold() {
     clearTimeout(this._holdTimer);
     clearInterval(this._holdInterval);
-    this._holdTimer   = null;
+    this._holdTimer    = null;
     this._holdInterval = null;
   }
 
-  // ── Rendering ─────────────────────────────────────────────────────────────
+  // ── Main render ───────────────────────────────────────────────────────────
 
-  _render(entity) {
-    if (!entity) {
+  _renderAll() {
+    const remotes   = this._remotes;
+    const multiTab  = remotes.length > 1;
+    const active    = remotes[this._activeTab] || remotes[0];
+    const st        = this._hass?.states[active.entity];
+    const offline   = st?.state === "unavailable";
+
+    if (!st) {
       this.shadowRoot.innerHTML = `${this._css()}
         <ha-card>
+          ${multiTab ? this._renderTabBar() : ""}
           <div class="card-err">
-            Entity not found: <code>${this._esc(this._config?.entity)}</code>
+            Entity not found: <code>${this._esc(active.entity || "(not set)")}</code>
           </div>
         </ha-card>`;
+      if (multiTab) this._wireTabBar();
       return;
     }
 
-    const cmds        = entity.attributes.configured_commands || [];
-    const sourceList  = entity.attributes.source_list        || [];
-    const sourceMode  = entity.attributes.source_mode;
-    const sourceIdx   = entity.attributes.source_index ?? null;
-    const offline     = entity.state === "unavailable";
-    const name        = this._config.title
-                        || entity.attributes.friendly_name
-                        || this._config.entity;
+    const body = this._renderBody(st, active);
 
-    const hidden      = new Set(this._config.hidden_groups || []);
-    const extraBtns   = this._config.extra_buttons || [];
+    if (multiTab) {
+      this.shadowRoot.innerHTML = `${this._css()}
+        <ha-card>
+          ${this._renderTabBar()}
+          <div class="remote-body${offline ? " is-offline" : ""}">${body}</div>
+        </ha-card>`;
+      this._wireTabBar();
+    } else {
+      // Single remote — classic header
+      const name = active.title
+                   || st.attributes.friendly_name
+                   || active.entity;
+      this.shadowRoot.innerHTML = `${this._css()}
+        <ha-card>
+          <div class="card-hdr">
+            <div class="hdr-left">
+              <span class="card-icon">${active.card_icon || "📺"}</span>
+              <span class="card-name">${this._esc(name)}</span>
+            </div>
+            ${offline
+              ? `<span class="badge offline">Unavailable</span>`
+              : `<span class="badge online">Online</span>`}
+          </div>
+          <div class="remote-body${offline ? " is-offline" : ""}">${body}</div>
+        </ha-card>`;
+    }
 
-    // Commands that go in custom section: not in built-in groups, not sources, not extra_btn commands
-    const extraCmds   = new Set(extraBtns.map(b => b.command).filter(Boolean));
-    const customCmds  = cmds.filter(c => !KNOWN_CMDS.has(c) && !sourceList.includes(c) && !extraCmds.has(c));
+    this._wireButtons();
+  }
 
-    // Build body — volume / dpad / channels are rendered together as the VDC zone
+  // ── Tab bar ───────────────────────────────────────────────────────────────
+
+  _renderTabBar() {
+    const tabs = this._remotes.map((r, i) => {
+      const st      = this._hass?.states[r.entity];
+      const offline = st?.state === "unavailable";
+      const name    = r.title || st?.attributes.friendly_name || r.entity;
+      const icon    = r.card_icon || "📺";
+      const dot     = offline ? `<span class="tab-dot"></span>` : "";
+      return `<button class="tab-btn${i === this._activeTab ? " active" : ""}" data-tab="${i}" title="${this._esc(name)}">
+        <span class="tab-icon">${icon}</span>
+        <span class="tab-name">${this._esc(name)}${dot}</span>
+      </button>`;
+    }).join("");
+    return `<div class="tab-bar">${tabs}</div>`;
+  }
+
+  _wireTabBar() {
+    this.shadowRoot.querySelectorAll("[data-tab]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        this._activeTab = parseInt(btn.dataset.tab);
+        this._lastKey   = null; // force re-render
+        this._renderAll();
+      });
+    });
+  }
+
+  // ── Body rendering (per remote) ───────────────────────────────────────────
+
+  _renderBody(entity, remoteConfig) {
+    const cmds       = entity.attributes.configured_commands || [];
+    const sourceList = entity.attributes.source_list         || [];
+    const hidden     = new Set(remoteConfig.hidden_groups    || []);
+    const extraBtns  = remoteConfig.extra_buttons            || [];
+
+    const extraCmds  = new Set(extraBtns.map(b => b.command).filter(Boolean));
+    const customCmds = cmds.filter(c => !KNOWN_CMDS.has(c) && !sourceList.includes(c) && !extraCmds.has(c));
+
     const VDC_IDS = new Set(["power", "volume", "channels", "dpad"]);
     let body = "";
     let vdcDone = false;
     for (const g of GROUP_DEFS) {
       if (hidden.has(g.id)) continue;
       if (VDC_IDS.has(g.id)) continue;
-      // Insert the VDC zone just before the first non-power group
       if (!vdcDone && g.id !== "power") {
         body += this._renderVdcZone(cmds, hidden);
         vdcDone = true;
@@ -571,18 +753,15 @@ class TasmotaIrRemoteCard extends HTMLElement {
     }
     if (!vdcDone) body += this._renderVdcZone(cmds, hidden);
 
-    // Sources — direct per-source buttons (cycle button lives in the power row)
     if (sourceList.length) {
       body += this._sectionLabel("Sources");
-      let srcHtml = "";
-      // Direct source buttons
-      srcHtml += sourceList.map(s => {
-        return `<button class="rmt-btn btn-src" data-cmd="${this._esc(s)}" title="${this._esc(s)}">${this._esc(s)}</button>`;
-      }).join("");
-      body += `<div class="rmt-row src-row">${srcHtml}</div>`;
+      body += `<div class="rmt-row src-row">${
+        sourceList.map(s =>
+          `<button class="rmt-btn btn-src" data-cmd="${this._esc(s)}" title="${this._esc(s)}">${this._esc(s)}</button>`
+        ).join("")
+      }</div>`;
     }
 
-    // Extra buttons from card config
     if (extraBtns.filter(b => b.label && b.command).length) {
       body += this._sectionLabel("My Buttons");
       body += `<div class="rmt-row">${
@@ -595,7 +774,6 @@ class TasmotaIrRemoteCard extends HTMLElement {
       }</div>`;
     }
 
-    // Custom commands (auto-discovered from entity, not in any other section)
     if (customCmds.length) {
       body += this._sectionLabel("Custom");
       body += `<div class="rmt-row">${
@@ -605,26 +783,13 @@ class TasmotaIrRemoteCard extends HTMLElement {
       }</div>`;
     }
 
-    this.shadowRoot.innerHTML = `${this._css()}
-      <ha-card>
-        <div class="card-hdr">
-          <div class="hdr-left">
-            <span class="card-icon">${this._config.card_icon || "📺"}</span>
-            <span class="card-name">${this._esc(name)}</span>
-          </div>
-          ${offline
-            ? `<span class="badge offline">Unavailable</span>`
-            : `<span class="badge online">Online</span>`}
-        </div>
-        <div class="remote-body${offline ? " is-offline" : ""}">${body}</div>
-      </ha-card>`;
+    return body;
+  }
 
-    // Wire click (+ hold-to-repeat) handlers
+  _wireButtons() {
     this.shadowRoot.querySelectorAll("[data-cmd]").forEach(el => {
       const cmd = el.dataset.cmd;
-
       el.addEventListener("click", () => this._send(cmd));
-
       if (HOLD_CMDS.has(cmd)) {
         el.addEventListener("pointerdown",   () => this._startHold(cmd));
         el.addEventListener("pointerup",     () => this._cancelHold());
@@ -637,13 +802,11 @@ class TasmotaIrRemoteCard extends HTMLElement {
   // ── Group renderers ───────────────────────────────────────────────────────
 
   _groupHtml(group, cmds) {
-    const vis = group.layout === "dpad" || group.layout === "keypad"
+    const vis    = group.layout === "dpad" || group.layout === "keypad"
       ? group.buttons
       : group.buttons.filter(b => b && cmds.includes(b.cmd));
-
     const hasAny = group.buttons.some(b => b && cmds.includes(b.cmd));
     if (!hasAny) return "";
-
     switch (group.layout) {
       case "power":  return this._renderPower(vis.filter(b => b && cmds.includes(b.cmd)), cmds);
       case "dpad":   return this._renderDpad(group.buttons, cmds);
@@ -658,7 +821,7 @@ class TasmotaIrRemoteCard extends HTMLElement {
     const cycleBtn = hasCycle
       ? `<button class="rmt-btn btn-cycle" data-cmd="source_cycle" title="Cycle Input"><ha-icon icon="mdi:import"></ha-icon></button>`
       : "";
-    const rowCls   = hasCycle ? "rmt-row pwr-row" : "rmt-row";
+    const rowCls = hasCycle ? "rmt-row pwr-row" : "rmt-row";
     if (vis.length === 1 && vis[0].cmd === "power") {
       return `<div class="${rowCls}">
         <button class="rmt-btn btn-power-icon" data-cmd="power" title="Power">⏻</button>
@@ -675,13 +838,11 @@ class TasmotaIrRemoteCard extends HTMLElement {
     return `<div class="rmt-row">${
       vis.map(b => {
         const isColor = b.cls && b.cls.includes("btn-color");
-        const inner   = isColor
-          ? ""
-          : b.icon
-            ? `<span class="b-icon">${b.icon}</span>`
-            : `<span class="b-lbl">${b.label || b.cmd}</span>`;
-        const cls     = "rmt-btn" + (b.cls ? " " + b.cls : "") + (HOLD_CMDS.has(b.cmd) ? " hold-capable" : "");
-        const title   = b.title || b.label || b.cmd;
+        const inner   = isColor ? "" : b.icon
+          ? `<span class="b-icon">${b.icon}</span>`
+          : `<span class="b-lbl">${b.label || b.cmd}</span>`;
+        const cls   = "rmt-btn" + (b.cls ? " " + b.cls : "") + (HOLD_CMDS.has(b.cmd) ? " hold-capable" : "");
+        const title = b.title || b.label || b.cmd;
         return `<button class="${cls}" data-cmd="${b.cmd}" title="${title}">${inner}</button>`;
       }).join("")
     }</div>`;
@@ -713,8 +874,6 @@ class TasmotaIrRemoteCard extends HTMLElement {
     }</div>`;
   }
 
-  // Header row (Power | gap | Cycle) sits above Volume | D-pad | Channels,
-  // all sharing the same CSS-grid columns so they line up perfectly.
   _renderVdcZone(cmds, hidden) {
     const powerGrp = GROUP_DEFS.find(g => g.id === "power");
     const volGrp   = GROUP_DEFS.find(g => g.id === "volume");
@@ -729,19 +888,16 @@ class TasmotaIrRemoteCard extends HTMLElement {
 
     if (!hasPower && !hasVol && !hasCh && !hasDpad && !hasCycle) return "";
 
-    const makeColBtns = (btns) => btns
+    const makeColBtns = btns => btns
       .filter(b => b && cmds.includes(b.cmd))
       .map(b => {
-        const cls   = "rmt-btn"
-          + (b.cls ? " " + b.cls : "")
-          + (HOLD_CMDS.has(b.cmd) ? " hold-capable" : "");
+        const cls   = "rmt-btn" + (b.cls ? " " + b.cls : "") + (HOLD_CMDS.has(b.cmd) ? " hold-capable" : "");
         const inner = b.icon
           ? `<span class="b-icon">${b.icon}</span>`
           : `<span class="b-lbl">${b.label || b.cmd}</span>`;
         return `<button class="${cls}" data-cmd="${b.cmd}" title="${b.label || b.cmd}">${inner}</button>`;
       }).join("");
 
-    // Power button HTML
     let pwrHtml = "";
     if (hasPower) {
       const btns = powerGrp.buttons.filter(b => b && cmds.includes(b.cmd));
@@ -756,7 +912,6 @@ class TasmotaIrRemoteCard extends HTMLElement {
 
     const hasHeader = hasPower || hasCycle;
 
-    // No header — plain 3-column flex zone
     if (!hasHeader) {
       return `<div class="vdc-zone">
         <div class="vdc-col">${volHtml}</div>
@@ -765,7 +920,6 @@ class TasmotaIrRemoteCard extends HTMLElement {
       </div>`;
     }
 
-    // Header row + main row share the same CSS grid so columns align exactly
     return `<div class="vdc-grid">
       <div class="vdc-g-hdr">${pwrHtml}</div>
       <div></div>
@@ -774,25 +928,6 @@ class TasmotaIrRemoteCard extends HTMLElement {
       <div class="vdc-g-dpad">${dpadHtml}</div>
       <div class="vdc-g-col">${chHtml}</div>
     </div>`;
-  }
-
-  _getSourceIcon(name) {
-    const n = name.toLowerCase().trim();
-    if (/^hdmi\s*1$/.test(n)) return "①";
-    if (/^hdmi\s*2$/.test(n)) return "②";
-    if (/^hdmi\s*3$/.test(n)) return "③";
-    if (/^hdmi\s*4$/.test(n)) return "④";
-    if (/^hdmi\s*5$/.test(n)) return "⑤";
-    if (/^(tv|dtv|atv|antenna)$/.test(n)) return "📺";
-    if (/^usb/.test(n))       return "⏏";
-    if (/^netflix/.test(n))   return "🎬";
-    if (/^youtube/.test(n))   return "▶";
-    if (/^av\s*\d*$|^video/.test(n)) return "📹";
-    if (/^(pc|vga|dvi|displayport|dp)$/.test(n)) return "🖥";
-    if (/^(sat(ellite)?|dbs)/.test(n)) return "📡";
-    if (/^(game|ps\d|xbox)/.test(n))   return "🎮";
-    if (/^(dvd|blu|bd)/.test(n))       return "💿";
-    return null; // fall back to text label
   }
 
   _sectionLabel(text) {
@@ -824,7 +959,7 @@ ha-card { overflow: hidden; border-radius: 12px; }
   border-radius: 4px;
 }
 
-/* ── Header ────────────────────────────────────────────────── */
+/* ── Single-remote header ──────────────────────────────────── */
 .card-hdr {
   display: flex;
   align-items: center;
@@ -858,6 +993,60 @@ ha-card { overflow: hidden; border-radius: 12px; }
 }
 .badge.online  { background: rgba(255,255,255,0.2); }
 .badge.offline { background: rgba(244,67,54,0.85); }
+
+/* ── Multi-remote tab bar ──────────────────────────────────── */
+.tab-bar {
+  display: flex;
+  background: var(--secondary-background-color, rgba(120,120,120,0.08));
+  border-bottom: 2px solid var(--divider-color, rgba(0,0,0,0.08));
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tab-bar::-webkit-scrollbar { display: none; }
+.tab-btn {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 8px 8px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--secondary-text-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.15s, border-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  position: relative;
+}
+.tab-btn:hover { color: var(--primary-text-color); }
+.tab-btn.active {
+  color: var(--primary-color, #03a9f4);
+  border-bottom-color: var(--primary-color, #03a9f4);
+  font-weight: 600;
+}
+.tab-icon { font-size: 1.25em; line-height: 1; }
+.tab-name {
+  font-size: 0.72em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 72px;
+}
+.tab-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--error-color, #f44336);
+  margin-left: 3px;
+  vertical-align: middle;
+}
 
 /* ── Body ──────────────────────────────────────────────────── */
 .remote-body {
@@ -908,15 +1097,12 @@ ha-card { overflow: hidden; border-radius: 12px; }
   transform: scale(0.87);
   box-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
-/* Hold-capable buttons get a subtle indicator */
 .hold-capable::after {
   content: "";
   position: absolute;
-  bottom: 4px;
-  left: 50%;
+  bottom: 4px; left: 50%;
   transform: translateX(-50%);
-  width: 14px;
-  height: 2px;
+  width: 14px; height: 2px;
   border-radius: 1px;
   background: var(--primary-color, #03a9f4);
   opacity: 0.4;
@@ -936,7 +1122,7 @@ ha-card { overflow: hidden; border-radius: 12px; }
   width: 100%;
 }
 
-/* ── VDC zone: Volume | D-pad | Channels ───────────────────── */
+/* ── VDC zone ──────────────────────────────────────────────── */
 .vdc-zone {
   display: flex;
   align-items: stretch;
@@ -952,20 +1138,10 @@ ha-card { overflow: hidden; border-radius: 12px; }
   gap: 7px;
   min-width: 64px;
 }
-.vdc-col .rmt-btn {
-  flex: 1;
-  display: flex;
-  width: 100%;
-  min-height: 44px;
-}
-.vdc-center {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+.vdc-col .rmt-btn { flex: 1; display: flex; width: 100%; min-height: 44px; }
+.vdc-center { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }
 
-/* ── VDC Grid (header row + main row, column-aligned) ────────── */
+/* ── VDC Grid ──────────────────────────────────────────────── */
 .vdc-grid {
   display: grid;
   grid-template-columns: minmax(64px, auto) auto minmax(64px, auto);
@@ -974,11 +1150,7 @@ ha-card { overflow: hidden; border-radius: 12px; }
   justify-content: center;
   width: 100%;
 }
-.vdc-g-hdr {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
+.vdc-g-hdr { display: flex; justify-content: center; align-items: center; }
 .vdc-g-col {
   display: flex;
   flex-direction: column;
@@ -987,29 +1159,14 @@ ha-card { overflow: hidden; border-radius: 12px; }
   gap: 7px;
   align-self: stretch;
 }
-.vdc-g-col .rmt-btn {
-  flex: 1;
-  display: flex;
-  width: 100%;
-  min-height: 44px;
-}
-.vdc-g-dpad {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+.vdc-g-col .rmt-btn { flex: 1; display: flex; width: 100%; min-height: 44px; }
+.vdc-g-dpad { display: flex; align-items: center; justify-content: center; }
 
-/* ── Power icon (circle) inside the VDC left column ────────── */
-.vdc-col .btn-power-icon {
-  flex: 0 0 56px;
-  width: 56px !important;
-  align-self: center;
-}
+/* ── Power icon ────────────────────────────────────────────── */
+.vdc-col .btn-power-icon { flex: 0 0 56px; width: 56px !important; align-self: center; }
 .btn-power-icon {
-  min-width: 56px !important;
-  min-height: 56px !important;
-  width: 56px;
-  height: 56px;
+  min-width: 56px !important; min-height: 56px !important;
+  width: 56px; height: 56px;
   border-radius: 50% !important;
   background: var(--secondary-background-color, rgba(120,120,120,0.08)) !important;
   color: var(--error-color, #e53935) !important;
@@ -1025,13 +1182,6 @@ ha-card { overflow: hidden; border-radius: 12px; }
   font-size: 0.92em;
   box-shadow: 0 2px 6px rgba(229,57,53,0.35);
 }
-.btn-power-pill {
-  min-width: 150px;
-  min-height: 50px;
-  border-radius: 25px;
-  font-size: 1em;
-  letter-spacing: 0.06em;
-}
 
 /* ── Mute ──────────────────────────────────────────────────── */
 .btn-mute {
@@ -1040,13 +1190,24 @@ ha-card { overflow: hidden; border-radius: 12px; }
   box-shadow: none;
 }
 
+/* ── OK ────────────────────────────────────────────────────── */
+.dpad-ok {
+  min-width: 62px !important; min-height: 62px !important;
+  border-radius: 50% !important;
+  background: var(--secondary-background-color, rgba(120,120,120,0.08)) !important;
+  color: var(--primary-text-color) !important;
+  font-weight: 700; font-size: 0.95em;
+  outline: 2.5px solid var(--primary-color, #03a9f4);
+  outline-offset: -2px;
+  box-shadow: none;
+}
+.dpad-ok:active { background: rgba(3,169,244,0.15) !important; }
+
 /* ── Color circles ─────────────────────────────────────────── */
 .btn-color {
   border-radius: 50% !important;
-  min-width: 44px  !important;
-  min-height: 44px !important;
-  width: 44px;
-  height: 44px;
+  min-width: 44px !important; min-height: 44px !important;
+  width: 44px; height: 44px;
   padding: 0 !important;
   font-size: 1.4em;
   box-shadow: 0 2px 6px rgba(0,0,0,0.2);
@@ -1061,22 +1222,8 @@ ha-card { overflow: hidden; border-radius: 12px; }
 .dpad-row  { display: flex; align-items: center; justify-content: center; gap: 6px; }
 .dpad-void { width: 56px; height: 48px; }
 .dpad-arrow {
-  min-width: 56px !important;
-  min-height: 48px !important;
-  font-size: 1.15em;
-  border-radius: 10px !important;
-}
-.dpad-ok {
-  min-width: 62px !important;
-  min-height: 62px !important;
-  border-radius: 50% !important;
-  background: var(--secondary-background-color, rgba(120,120,120,0.08)) !important;
-  color: var(--primary-text-color) !important;
-  font-weight: 700;
-  font-size: 0.95em;
-  outline: 2.5px solid var(--primary-color, #03a9f4);
-  outline-offset: -2px;
-  box-shadow: none;
+  min-width: 56px !important; min-height: 48px !important;
+  font-size: 1.15em; border-radius: 10px !important;
 }
 
 /* ── Keypad ────────────────────────────────────────────────── */
@@ -1088,11 +1235,8 @@ ha-card { overflow: hidden; border-radius: 12px; }
   margin: 0 auto;
 }
 .kp-btn {
-  width: 100%;
-  min-height: 50px !important;
-  font-size: 1.2em;
-  font-weight: 600;
-  border-radius: 8px !important;
+  width: 100%; min-height: 50px !important;
+  font-size: 1.2em; font-weight: 600; border-radius: 8px !important;
 }
 
 /* ── Section label ─────────────────────────────────────────── */
@@ -1103,11 +1247,8 @@ ha-card { overflow: hidden; border-radius: 12px; }
   gap: 8px;
   margin-top: 4px;
 }
-.section-lbl::before,
-.section-lbl::after {
-  content: "";
-  flex: 1;
-  height: 1px;
+.section-lbl::before, .section-lbl::after {
+  content: ""; flex: 1; height: 1px;
   background: var(--divider-color, rgba(0,0,0,0.1));
 }
 .section-lbl span {
@@ -1119,29 +1260,16 @@ ha-card { overflow: hidden; border-radius: 12px; }
   white-space: nowrap;
 }
 
-/* ── Source / Custom buttons ───────────────────────────────── */
+/* ── Source / Custom / Extra buttons ───────────────────────── */
 .rmt-btn ha-icon { --mdc-icon-size: 26px; display: flex; }
 .btn-src {
-  flex: 1 1 auto;
-  min-width: 66px;
-  max-width: 160px;
-  font-size: 0.83em;
-  border-radius: 8px !important;
+  flex: 1 1 auto; min-width: 66px; max-width: 160px;
+  font-size: 0.83em; border-radius: 8px !important;
 }
 .src-row { flex-wrap: wrap; }
-.src-active {
-  background: var(--primary-color, #03a9f4) !important;
-  color: #fff !important;
-  box-shadow: 0 2px 8px rgba(3,169,244,0.4);
-}
-
-/* ── Card-config extra buttons ─────────────────────────────── */
 .btn-extra {
-  flex: 1 1 auto;
-  min-width: 66px;
-  max-width: 160px;
-  font-size: 0.83em;
-  border-radius: 8px !important;
+  flex: 1 1 auto; min-width: 66px; max-width: 160px;
+  font-size: 0.83em; border-radius: 8px !important;
   background: var(--btn-extra-bg, var(--secondary-background-color, rgba(120,120,120,0.08))) !important;
   color: #fff !important;
   font-weight: 500;
@@ -1152,15 +1280,17 @@ ha-card { overflow: hidden; border-radius: 12px; }
 
 // ── Register ──────────────────────────────────────────────────────────────────
 
-customElements.define("tasmota-ir-remote-card", TasmotaIrRemoteCard);
+if (!customElements.get("tasmota-ir-ready-remote-card")) {
+  customElements.define("tasmota-ir-ready-remote-card", TasmotaIrRemoteCard);
+}
 
 window.customCards = window.customCards || [];
 window.customCards.push({
-  type:        "tasmota-ir-remote-card",
+  type:        "tasmota-ir-ready-remote-card",
   name:        "Tasmota IR Remote",
-  description: "Remote-control card for Tasmota IR Ready — configurable groups, extra buttons, hold-to-repeat.",
+  description: "Remote-control card for Tasmota IR Ready — up to 4 remotes as tabs, configurable groups, extra buttons, hold-to-repeat.",
   preview:     false,
-  documentationURL: "https://github.com/your-repo/tasmota-ir-ready",
+  documentationURL: "https://github.com/Hollako/Tasmota-IR-Ready",
 });
 
 console.info(
