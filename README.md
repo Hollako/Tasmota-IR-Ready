@@ -2,12 +2,14 @@
 
 # Tasmota IR Ready
 
-Home Assistant integration for controlling IR devices via Tasmota-compatible IR transceiver hardware. Supports **air conditioners** (climate), **media players** (TVs, AV receivers), and **generic IR remotes**.
+Home Assistant integration for controlling IR devices via Tasmota-compatible IR transceiver hardware. Supports **air conditioners** (climate), **media players** (TVs, AV receivers), **fans**, **humidifiers**, and **generic IR remotes**.
 
 ## Supported Device Types
 
 - **Climate** - Full AC control using Tasmota's `IRHVAC` command with bidirectional state sync
 - **Media Player** - TV and AV receiver control via Tasmota's `IRSend` command
+- **Fan** - IR-controlled fans with speed presets, oscillation and direction
+- **Humidifier** - IR-controlled humidifiers with modes and humidity setpoint tracking
 - **Remote** - Generic IR remote with named button commands via `IRSend`
 
 ## Hardware
@@ -149,9 +151,57 @@ Controls TVs and AV receivers using Tasmota's `IRSend` command. You configure he
 
 ---
 
+## Fan
+
+Controls IR-controlled fans using Tasmota's `IRSend` command. Configure hex IR codes for each function directly from your remote using the IR Manager panel.
+
+**Supported controls:**
+
+- Power on / off / toggle
+- Speed presets — up to 6 named speed levels (e.g. Low, Medium, High)
+- Oscillation — toggle, dedicated on code, and dedicated off code
+- Direction — forward and reverse
+
+**Optional sensors:**
+
+- `power_sensor` — external binary sensor entity reflecting the fan's physical power state; keeps HA in sync when the fan is controlled by other means
+
+The availability topic is auto-derived from the command topic (`tele/<device>/LWT`) or can be set explicitly.
+
+---
+
+## Humidifier
+
+Controls IR-controlled humidifiers using Tasmota's `IRSend` command. All state is optimistic since IR devices cannot report back — target humidity and on/off state are tracked entirely in Home Assistant.
+
+**Supported controls:**
+
+- Power on / off / toggle
+- Modes — up to 6 named operating modes (e.g. Auto, Sleep, Boost)
+- Target humidity — stored optimistically in HA (no IR code sent when changing the setpoint)
+
+**Humidity range:**
+
+Configure `min_humidity`, `max_humidity`, and `humidity_step` to match your device's capabilities. These are exposed as HA capability attributes so the humidifier card slider behaves correctly.
+
+**Action states** (derived automatically):
+
+- **Humidifying** — device is on and working toward the target (or no sensor data available)
+- **Idle** — device is on but current humidity has reached the target
+- **Off** — device is off
+
+**Optional sensors:**
+
+- `humidity_sensor` — external HA sensor for current humidity (updates the current humidity attribute in real time)
+- `power_sensor` — external binary sensor reflecting physical power state
+
+The availability topic is auto-derived from the command topic (`tele/<device>/LWT`) or can be set explicitly.
+
+---
+
 ## Remote
 
-Generic IR remote entity that sends named commands via `remote.send_command`. Use it with automations, scripts, or the built-in **Tasmota IR Remote Card** (see below).
+Generic IR remote entity that sends named commands via `remote.send_command`. Use it with automations, scripts, the built-in **Tasmota IR Remote Card** (see below), or the [Universal Remote Card](https://github.com/Nerwyn/universal-remote-card).
 
 **Built-in command names:**
 
@@ -172,13 +222,17 @@ Generic IR remote entity that sends named commands via `remote.send_command`. Us
 
 - **Climate** - thermostat card, tile card, or any climate-compatible card
 - **Media Player** - media control card or mini media player card
-- **Remote** - use the built-in Tasmota IR Remote Card (below), the [Universal Remote Card](https://github.com/iablon/homeassistant-universal-remote-card), or any button card calling `remote.send_command`
+- **Remote** - use the built-in Tasmota IR Remote Card (below), the [Universal Remote Card](https://github.com/Nerwyn/universal-remote-card), or any button card calling `remote.send_command`
 
 When the original AC remote is used, a Tasmota IR receiver updates the climate state in Home Assistant automatically.
 
 ---
 
 ## Tasmota IR Remote Card
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Hollako/Tasmota-IR-Ready/master/images/remote_card.png" alt="Tasmota IR Remote Card" width="360">
+</p>
 
 A custom Lovelace card included with the integration. It reads the remote entity's configured commands and renders the appropriate buttons automatically.
 
