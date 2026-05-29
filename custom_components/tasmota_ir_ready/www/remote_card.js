@@ -515,8 +515,8 @@ class TasmotaIrRemoteCard extends HTMLElement {
   _startHold(cmd) {
     this._cancelHold();
     this._holdTimer = setTimeout(() => {
-      this._holdInterval = setInterval(() => this._send(cmd), 300);
-    }, 450);
+      this._holdInterval = setInterval(() => this._send(cmd), 200);
+    }, 300);
   }
 
   _cancelHold() {
