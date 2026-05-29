@@ -3,6 +3,8 @@
   "brand": "GREE",
   "model": "Split AC",
   "options": {
+    "device_type": "climate",
+    "vendor": "GREE",
     "supported_modes": [
       "heat",
       "cool",
@@ -42,21 +44,6 @@
       "Turbo",
       "Light"
     ],
-    "mqtt_delay": "0",
-    "media_protocol": "NEC",
-    "media_bits": 32,
-    "media_source_cycle_delay": 0.5,
-    "media_source_mode": "direct",
-    "command_topic": "Salon_IR/cmnd/IRHVAC",
-    "device_type": "climate",
-    "name": "Salon AC",
-    "state_topic": "Salon_IR/tele/RESULT",
-    "vendor": "GREE",
-    "availability_topic": "Salon_IR/tele/LWT",
-    "humidity_sensor": "sensor.salon_ir_am2301_humidity",
-    "power_sensor": "",
-    "special_mode": "",
-    "state_topic_2": "",
-    "temperature_sensor": "sensor.salon_ir_am2301_temperature"
+    "mqtt_delay": 0
   }
 }

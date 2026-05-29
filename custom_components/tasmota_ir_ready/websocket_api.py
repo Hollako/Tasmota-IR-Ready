@@ -270,7 +270,12 @@ async def ws_save_options(
     if "media_protocol" in new_opts and new_opts["media_protocol"]:
         new_opts["media_protocol"] = str(new_opts["media_protocol"]).upper()
 
-    hass.config_entries.async_update_entry(entry, options=new_opts)
+    # If the name changed, update the entry title so the sidebar reflects it
+    new_title = str(new_opts.get("name") or "").strip()
+    if new_title and new_title != entry.title:
+        hass.config_entries.async_update_entry(entry, title=new_title, options=new_opts)
+    else:
+        hass.config_entries.async_update_entry(entry, options=new_opts)
     await hass.config_entries.async_reload(msg["entry_id"])
     connection.send_result(msg["id"], {"success": True})
 
@@ -428,6 +433,112 @@ async def ws_create_entry(
 
 
 # ---------------------------------------------------------------------------
+# duplicate_entry  — clone an entry with new connection settings
+# ---------------------------------------------------------------------------
+
+@websocket_api.websocket_command({
+    vol.Required("type"): f"{DOMAIN}/duplicate_entry",
+    vol.Required("entry_id"): str,
+    vol.Required("overrides"): dict,
+})
+@websocket_api.async_response
+async def ws_duplicate_entry(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict,
+) -> None:
+    """Duplicate a config entry with new connection settings."""
+    entry = hass.config_entries.async_get_entry(msg["entry_id"])
+    if not entry:
+        connection.send_error(msg["id"], "not_found", "Config entry not found")
+        return
+
+    # Merge original options with caller-supplied overrides (new topics, name, etc.)
+    all_options: dict[str, Any] = {**entry.data, **entry.options, **msg["overrides"]}
+
+    try:
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": "import"},
+            data=all_options,
+        )
+    except Exception as exc:  # noqa: BLE001
+        connection.send_error(msg["id"], "duplicate_failed", str(exc))
+        return
+
+    flow_type = result.get("type") if isinstance(result, dict) else getattr(result, "type", None)
+    if str(flow_type) == "create_entry":
+        new_entry = result.get("result") if isinstance(result, dict) else getattr(result, "result", None)
+        connection.send_result(msg["id"], {
+            "success": True,
+            "entry_id": new_entry.entry_id if new_entry else None,
+        })
+    else:
+        reason = result.get("reason", "unknown") if isinstance(result, dict) else getattr(result, "reason", "unknown")
+        connection.send_error(msg["id"], "duplicate_failed", f"Flow ended with: {reason}")
+
+
+# ---------------------------------------------------------------------------
+# Flipper IRDB — online database browser & converter
+# ---------------------------------------------------------------------------
+
+@websocket_api.websocket_command({
+    vol.Required("type"): f"{DOMAIN}/flipper_browse",
+    vol.Optional("path", default=""): str,
+})
+@websocket_api.async_response
+async def ws_flipper_browse(hass: HomeAssistant, connection, msg: dict) -> None:
+    """Browse Flipper IRDB directories and .ir files via the GitHub API.
+
+    path="" lists the real top-level folders of the repo.
+    path="TV_sets/Samsung" lists items inside that folder.
+    Results are cached in hass.data for the lifetime of the HA session.
+    """
+    from homeassistant.helpers.aiohttp_client import async_get_clientsession
+    from .flipper_irdb import browse_path
+
+    path: str = msg.get("path", "")
+
+    # Per-path in-memory cache (avoids hammering GitHub API rate limit)
+    domain_data = hass.data.setdefault(DOMAIN, {})
+    cache: dict[str, list] = domain_data.setdefault("_flipper_cache", {})
+    if path in cache:
+        connection.send_result(msg["id"], {"items": cache[path]})
+        return
+
+    try:
+        session = async_get_clientsession(hass)
+        items = await browse_path(session, path)
+        cache[path] = items
+        connection.send_result(msg["id"], {"items": items})
+    except Exception as exc:  # noqa: BLE001
+        _LOGGER.warning("Flipper IRDB browse failed for %s: %s", path, exc)
+        connection.send_error(msg["id"], "browse_failed", str(exc))
+
+
+@websocket_api.websocket_command({
+    vol.Required("type"): f"{DOMAIN}/flipper_load",
+    vol.Required("path"): str,
+    vol.Optional("device_type", default="remote"): str,
+})
+@websocket_api.async_response
+async def ws_flipper_load(hass: HomeAssistant, connection, msg: dict) -> None:
+    """Fetch a Flipper IRDB .ir file, convert it and return a Tasmota profile."""
+    from homeassistant.helpers.aiohttp_client import async_get_clientsession
+    from .flipper_irdb import fetch_and_convert
+
+    try:
+        session = async_get_clientsession(hass)
+        profile = await fetch_and_convert(
+            session, msg["path"], msg.get("device_type", "remote")
+        )
+        connection.send_result(msg["id"], profile)
+    except Exception as exc:  # noqa: BLE001
+        _LOGGER.warning("Flipper IRDB load failed for %s: %s", msg.get("path"), exc)
+        connection.send_error(msg["id"], "load_failed", str(exc))
+
+
+# ---------------------------------------------------------------------------
 # Registration
 # ---------------------------------------------------------------------------
 
@@ -442,3 +553,6 @@ def async_register_websocket_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_send_ir)
     websocket_api.async_register_command(hass, ws_delete_entry)
     websocket_api.async_register_command(hass, ws_create_entry)
+    websocket_api.async_register_command(hass, ws_duplicate_entry)
+    websocket_api.async_register_command(hass, ws_flipper_browse)
+    websocket_api.async_register_command(hass, ws_flipper_load)

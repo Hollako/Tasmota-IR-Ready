@@ -103,6 +103,40 @@
           "media_protocol": "The protocol reported by Tasmota when decoding the remote, e.g. NEC, SONY, SAMSUNG.",
           "media_bits": "The bit length reported by Tasmota for this remote code."
         }
+      },
+      "fan": {
+        "title": "Set up IR Fan",
+        "description": "Enter the Tasmota IRSend topic, IR protocol, and bit count. Speed presets and oscillation can be configured afterwards via the **Configure** button.",
+        "data": {
+          "name": "Name",
+          "command_topic": "MQTT IRSend Command Topic",
+          "availability_topic": "Availability Topic (optional)",
+          "learn_topic": "IR Receive Topic (for Learning, optional)",
+          "media_protocol": "IR Protocol",
+          "media_bits": "Bits"
+        },
+        "data_description": {
+          "command_topic": "Topic to publish IRSend commands to, e.g. cmnd/tasmota_ir/IRSend",
+          "media_protocol": "The protocol reported by Tasmota when decoding the remote, e.g. NEC, SONY, SAMSUNG.",
+          "media_bits": "The bit length reported by Tasmota for this remote code."
+        }
+      },
+      "humidifier": {
+        "title": "Set up IR Humidifier",
+        "description": "Enter the Tasmota IRSend topic, IR protocol, and bit count. Operating modes can be configured afterwards via the **Configure** button.",
+        "data": {
+          "name": "Name",
+          "command_topic": "MQTT IRSend Command Topic",
+          "availability_topic": "Availability Topic (optional)",
+          "learn_topic": "IR Receive Topic (for Learning, optional)",
+          "media_protocol": "IR Protocol",
+          "media_bits": "Bits"
+        },
+        "data_description": {
+          "command_topic": "Topic to publish IRSend commands to, e.g. cmnd/tasmota_ir/IRSend",
+          "media_protocol": "The protocol reported by Tasmota when decoding the remote, e.g. NEC, SONY, SAMSUNG.",
+          "media_bits": "The bit length reported by Tasmota for this remote code."
+        }
       }
     },
     "abort": {
@@ -152,7 +186,7 @@
           "supported_modes": "Select only the modes your AC remote supports",
           "supported_fan_speeds": "Select only the fan speeds your AC remote supports",
           "supported_swing_list": "Select swing options available on your AC. Use fixed positions (Highest/High/…) instead of auto sweep if your AC supports vane positioning",
-          "hvac_model": "Leave at -1 for auto-detect, or enter the model number shown in Tasmota IR Ready output"
+          "hvac_model": "Leave at -1 for auto-detect, or enter the model number shown in Tasmota IRHVAC output"
         },
         "sections": {
           "hvac_modes": {
@@ -442,6 +476,134 @@
               "media_source_5_data": "Source 5 data (direct mode)",
               "media_source_6_name": "Source 6 name",
               "media_source_6_data": "Source 6 data (direct mode)"
+            }
+          }
+        }
+      },
+      "fan_options": {
+        "title": "Fan Commands",
+        "data": {
+          "learn_command": "Learn a Command (IR Learning)"
+        },
+        "sections": {
+          "fan_connection": {
+            "name": "Connection & Protocol",
+            "data": {
+              "name": "Name",
+              "command_topic": "MQTT IRSend Command Topic",
+              "availability_topic": "Availability Topic (optional)",
+              "learn_topic": "IR Receive Topic (for Learning)",
+              "media_protocol": "IR Protocol",
+              "media_bits": "Bits",
+              "mqtt_delay": "MQTT Delay (seconds)",
+              "fan_power_sensor": "Power Sensor (optional)"
+            },
+            "data_description": {
+              "mqtt_delay": "Delay before publishing — useful when grouping multiple IR devices to avoid simultaneous commands.",
+              "fan_power_sensor": "Select a binary_sensor that reflects the fan's physical power state. When it changes, the HA entity state is updated immediately — overriding the optimistic IR command result."
+            }
+          },
+          "fan_power": {
+            "name": "Power Commands",
+            "data": {
+              "fan_power_data": "Power Toggle",
+              "fan_power_on_data": "Power On",
+              "fan_power_off_data": "Power Off"
+            }
+          },
+          "fan_speeds": {
+            "name": "Speed Presets",
+            "description": "Define up to 6 named speed presets. Each name will appear as a preset mode in Home Assistant.",
+            "data": {
+              "fan_speed_1_name": "Speed 1 Name",
+              "fan_speed_1_data": "Speed 1 IR Code",
+              "fan_speed_2_name": "Speed 2 Name",
+              "fan_speed_2_data": "Speed 2 IR Code",
+              "fan_speed_3_name": "Speed 3 Name",
+              "fan_speed_3_data": "Speed 3 IR Code",
+              "fan_speed_4_name": "Speed 4 Name",
+              "fan_speed_4_data": "Speed 4 IR Code",
+              "fan_speed_5_name": "Speed 5 Name",
+              "fan_speed_5_data": "Speed 5 IR Code",
+              "fan_speed_6_name": "Speed 6 Name",
+              "fan_speed_6_data": "Speed 6 IR Code"
+            }
+          },
+          "fan_oscillation": {
+            "name": "Oscillation & Direction",
+            "data": {
+              "fan_oscillate_data": "Oscillate Toggle",
+              "fan_oscillate_on_data": "Oscillate On",
+              "fan_oscillate_off_data": "Oscillate Off",
+              "fan_direction_forward_data": "Direction Forward",
+              "fan_direction_reverse_data": "Direction Reverse"
+            }
+          }
+        }
+      },
+      "humidifier_options": {
+        "title": "Humidifier Commands",
+        "data": {
+          "learn_command": "Learn a Command (IR Learning)"
+        },
+        "sections": {
+          "humidifier_connection": {
+            "name": "Connection & Protocol",
+            "data": {
+              "name": "Name",
+              "command_topic": "MQTT IRSend Command Topic",
+              "availability_topic": "Availability Topic (optional)",
+              "learn_topic": "IR Receive Topic (for Learning)",
+              "media_protocol": "IR Protocol",
+              "media_bits": "Bits",
+              "mqtt_delay": "MQTT Delay (seconds)",
+              "humidifier_humidity_sensor": "Current Humidity Sensor (optional)",
+              "humidifier_power_sensor": "Power Sensor (optional)"
+            },
+            "data_description": {
+              "mqtt_delay": "Delay before publishing — useful when grouping multiple IR devices to avoid simultaneous commands.",
+              "humidifier_humidity_sensor": "Select any HA sensor that reports the current room humidity. Leave blank if you have no sensor.",
+              "humidifier_power_sensor": "Select a binary_sensor that reflects the humidifier's physical power state. When it changes, the HA entity state is updated immediately — overriding the optimistic IR command result."
+            }
+          },
+          "humidifier_power": {
+            "name": "Power Commands",
+            "data": {
+              "humidifier_power_data": "Power Toggle",
+              "humidifier_power_on_data": "Power On",
+              "humidifier_power_off_data": "Power Off"
+            }
+          },
+          "humidifier_modes": {
+            "name": "Operating Modes",
+            "description": "Define up to 6 named operating modes. Each name will appear as a mode in Home Assistant.",
+            "data": {
+              "humidifier_mode_1_name": "Mode 1 Name",
+              "humidifier_mode_1_data": "Mode 1 IR Code",
+              "humidifier_mode_2_name": "Mode 2 Name",
+              "humidifier_mode_2_data": "Mode 2 IR Code",
+              "humidifier_mode_3_name": "Mode 3 Name",
+              "humidifier_mode_3_data": "Mode 3 IR Code",
+              "humidifier_mode_4_name": "Mode 4 Name",
+              "humidifier_mode_4_data": "Mode 4 IR Code",
+              "humidifier_mode_5_name": "Mode 5 Name",
+              "humidifier_mode_5_data": "Mode 5 IR Code",
+              "humidifier_mode_6_name": "Mode 6 Name",
+              "humidifier_mode_6_data": "Mode 6 IR Code"
+            }
+          },
+          "humidifier_settings": {
+            "name": "Humidity Settings",
+            "description": "Target humidity is stored optimistically in HA — no IR code is sent when you change it. Current humidity is read live from the chosen sensor. The step is stored as a diagnostic attribute (HA's humidifier UI always increments by 1%).",
+            "data": {
+              "humidifier_min_humidity": "Min Target Humidity (%)",
+              "humidifier_max_humidity": "Max Target Humidity (%)",
+              "humidifier_humidity_step": "Humidity Step (%)"
+            },
+            "data_description": {
+              "humidifier_min_humidity": "Lower bound of the target humidity slider shown in the HA dashboard.",
+              "humidifier_max_humidity": "Upper bound of the target humidity slider shown in the HA dashboard.",
+              "humidifier_humidity_step": "Step used when incrementing/decrementing target humidity via automations or custom cards."
             }
           }
         }

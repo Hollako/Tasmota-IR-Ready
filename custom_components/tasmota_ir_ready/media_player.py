@@ -1,7 +1,6 @@
 """Media player entities for Tasmota IRSend devices."""
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 from typing import Any
@@ -145,13 +144,16 @@ class TasmotaIrMediaPlayer(RestoreEntity, MediaPlayerEntity):
 
         if self._source_mode == SOURCE_MODE_CYCLE:
             self._source_commands: dict[str, str] = {}
-            self._attr_source_list = self._build_cycle_source_list(config)
-            self._source_index: int | None = None
+            # Cycle mode: expose a single virtual source so HA's media-player
+            # card shows a pressable button.  No named source list — every press
+            # just sends one IR pulse.  After each press we reset _attr_source
+            # to None so HA allows the user to press the same button again
+            # immediately (HA normally blocks re-selecting the current source).
+            self._attr_source_list = ["Input"] if self._cycle_data else []
             self._attr_source: str | None = None
         else:
             self._source_commands = self._build_direct_source_commands(config)
             self._attr_source_list = list(self._source_commands)
-            self._source_index = None
             self._attr_source = self._attr_source_list[0] if self._attr_source_list else None
 
         self._has_power_controls = bool(
@@ -214,15 +216,6 @@ class TasmotaIrMediaPlayer(RestoreEntity, MediaPlayerEntity):
                 sources[name] = data
         return sources
 
-    @staticmethod
-    def _build_cycle_source_list(config: dict) -> list[str]:
-        """Return ordered source names for cycle mode (name alone is sufficient)."""
-        return [
-            (config.get(name_key) or "").strip()
-            for name_key, _ in _SOURCE_PAIRS
-            if (config.get(name_key) or "").strip()
-        ]
-
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
@@ -259,7 +252,7 @@ class TasmotaIrMediaPlayer(RestoreEntity, MediaPlayerEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return configured IR command names and source mode for diagnostics."""
-        attrs: dict[str, Any] = {
+        return {
             "source_mode": self._source_mode,
             "configured_commands": [
                 key.removeprefix("media_").removesuffix("_data")
@@ -272,9 +265,6 @@ class TasmotaIrMediaPlayer(RestoreEntity, MediaPlayerEntity):
                 else self._attr_source_list or []
             ),
         }
-        if self._source_mode == SOURCE_MODE_CYCLE and self._source_index is not None:
-            attrs["source_index"] = self._source_index
-        return attrs
 
     def _command(self, *keys: str) -> str:
         """Return the first configured hex data value for the requested keys."""
@@ -329,9 +319,9 @@ class TasmotaIrMediaPlayer(RestoreEntity, MediaPlayerEntity):
                 )
             last_source = last_state.attributes.get("source")
             if last_source and last_source in (self._attr_source_list or []):
-                self._attr_source = last_source
-                if self._source_mode == SOURCE_MODE_CYCLE:
-                    self._source_index = self._attr_source_list.index(last_source)
+                # Only restore source in direct mode; cycle mode always resets to None.
+                if self._source_mode == SOURCE_MODE_DIRECT:
+                    self._attr_source = last_source
 
         if self._availability_topic:
 
@@ -476,28 +466,19 @@ class TasmotaIrMediaPlayer(RestoreEntity, MediaPlayerEntity):
         self.async_write_ha_state()
 
     async def _async_select_source_cycle(self, source: str) -> None:
-        """Cycle to the requested source by pressing the cycle button N times."""
+        """Send one cycle IR press and reset source so it can be pressed again.
+
+        HA's source selector blocks re-selecting the currently active source.
+        By resetting _attr_source to None after every press the card always
+        treats the button as "not selected", allowing unlimited re-presses.
+        """
         if not self._cycle_data:
             _LOGGER.warning(
                 "Source mode is 'cycle' but no cycle IR code is configured. "
-                "Set 'Source Cycle Hex Data' in Configure."
+                "Set 'Cycle Button IR Code' in Configure."
             )
             return
-        source_list = self._attr_source_list or []
-        if source not in source_list:
-            _LOGGER.warning("Unknown source '%s' for cycle mode.", source)
-            return
-
-        target_idx = source_list.index(source)
-        n = len(source_list)
-
-        presses = target_idx if self._source_index is None else (target_idx - self._source_index) % n
-
-        for i in range(presses):
-            await self._async_publish_command(self._cycle_data)
-            if i < presses - 1:
-                await asyncio.sleep(self._cycle_delay)
-
-        self._source_index = target_idx
-        self._attr_source = source
+        await self._async_publish_command(self._cycle_data)
+        # Reset to None so HA allows the user to press the same button again.
+        self._attr_source = None
         self.async_write_ha_state()

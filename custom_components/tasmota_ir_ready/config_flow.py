@@ -50,6 +50,47 @@ from homeassistant.helpers.selector import (
 from .const import (
     CONF_AVAILABILITY_TOPIC,
     CONF_AWAY_TEMP,
+    CONF_FAN_DIRECTION_FORWARD_DATA,
+    CONF_FAN_DIRECTION_REVERSE_DATA,
+    CONF_FAN_OSCILLATE_DATA,
+    CONF_FAN_OSCILLATE_OFF_DATA,
+    CONF_FAN_OSCILLATE_ON_DATA,
+    CONF_FAN_POWER_DATA,
+    CONF_FAN_POWER_OFF_DATA,
+    CONF_FAN_POWER_ON_DATA,
+    CONF_FAN_POWER_SENSOR,
+    CONF_FAN_SPEED_1_DATA,
+    CONF_FAN_SPEED_1_NAME,
+    CONF_FAN_SPEED_2_DATA,
+    CONF_FAN_SPEED_2_NAME,
+    CONF_FAN_SPEED_3_DATA,
+    CONF_FAN_SPEED_3_NAME,
+    CONF_FAN_SPEED_4_DATA,
+    CONF_FAN_SPEED_4_NAME,
+    CONF_FAN_SPEED_5_DATA,
+    CONF_FAN_SPEED_5_NAME,
+    CONF_FAN_SPEED_6_DATA,
+    CONF_FAN_SPEED_6_NAME,
+    CONF_HUMIDIFIER_MODE_1_DATA,
+    CONF_HUMIDIFIER_MODE_1_NAME,
+    CONF_HUMIDIFIER_MODE_2_DATA,
+    CONF_HUMIDIFIER_MODE_2_NAME,
+    CONF_HUMIDIFIER_MODE_3_DATA,
+    CONF_HUMIDIFIER_MODE_3_NAME,
+    CONF_HUMIDIFIER_MODE_4_DATA,
+    CONF_HUMIDIFIER_MODE_4_NAME,
+    CONF_HUMIDIFIER_MODE_5_DATA,
+    CONF_HUMIDIFIER_MODE_5_NAME,
+    CONF_HUMIDIFIER_MODE_6_DATA,
+    CONF_HUMIDIFIER_MODE_6_NAME,
+    CONF_HUMIDIFIER_HUMIDITY_SENSOR,
+    CONF_HUMIDIFIER_HUMIDITY_STEP,
+    CONF_HUMIDIFIER_MAX_HUMIDITY,
+    CONF_HUMIDIFIER_MIN_HUMIDITY,
+    CONF_HUMIDIFIER_POWER_DATA,
+    CONF_HUMIDIFIER_POWER_SENSOR,
+    CONF_HUMIDIFIER_POWER_OFF_DATA,
+    CONF_HUMIDIFIER_POWER_ON_DATA,
     CONF_LEARN_TOPIC,
     CONF_MEDIA_SOURCE_CYCLE_DATA,
     CONF_MEDIA_SOURCE_CYCLE_DELAY,
@@ -158,11 +199,18 @@ from .const import (
     DEFAULT_MQTT_DELAY,
     DEFAULT_NAME,
     DEFAULT_PRECISION,
+    DEFAULT_FAN_NAME,
+    DEFAULT_HUMIDIFIER_MAX_HUMIDITY,
+    DEFAULT_HUMIDIFIER_MIN_HUMIDITY,
+    DEFAULT_HUMIDIFIER_HUMIDITY_STEP,
+    DEFAULT_HUMIDIFIER_NAME,
     DEFAULT_REMOTE_NAME,
     DEFAULT_STATE_TOPIC,
     DEFAULT_SWING_LIST,
     DEFAULT_TARGET_TEMP,
     DEVICE_TYPE_CLIMATE,
+    DEVICE_TYPE_FAN,
+    DEVICE_TYPE_HUMIDIFIER,
     DEVICE_TYPE_MEDIA_PLAYER,
     DEVICE_TYPE_REMOTE,
     DOMAIN,
@@ -188,6 +236,14 @@ _SECTION_REMOTE_KEYPAD = "remote_keypad"
 _SECTION_REMOTE_NAVIGATION = "remote_navigation"
 _SECTION_REMOTE_EXTRA = "remote_extra"
 _SECTION_REMOTE_SOURCES = "remote_sources"
+_SECTION_FAN_CONNECTION = "fan_connection"
+_SECTION_FAN_POWER = "fan_power"
+_SECTION_FAN_SPEEDS = "fan_speeds"
+_SECTION_FAN_OSCILLATION = "fan_oscillation"
+_SECTION_HUMIDIFIER_CONNECTION = "humidifier_connection"
+_SECTION_HUMIDIFIER_POWER = "humidifier_power"
+_SECTION_HUMIDIFIER_MODES = "humidifier_modes"
+_SECTION_HUMIDIFIER_SETTINGS = "humidifier_settings"
 
 # ---------------------------------------------------------------------------
 # Selector option lists
@@ -287,6 +343,8 @@ DEVICE_TYPE_OPTIONS = [
     {"value": DEVICE_TYPE_CLIMATE, "label": "Climate"},
     {"value": DEVICE_TYPE_MEDIA_PLAYER, "label": "Media Player"},
     {"value": DEVICE_TYPE_REMOTE, "label": "Remote"},
+    {"value": DEVICE_TYPE_FAN, "label": "Fan"},
+    {"value": DEVICE_TYPE_HUMIDIFIER, "label": "Humidifier"},
 ]
 
 SOURCE_MODE_OPTIONS = [
@@ -327,6 +385,53 @@ MEDIA_SOURCE_NAME_FIELDS = [
     CONF_MEDIA_SOURCE_4_NAME,
     CONF_MEDIA_SOURCE_5_NAME,
     CONF_MEDIA_SOURCE_6_NAME,
+]
+
+FAN_COMMAND_DATA_FIELDS = [
+    CONF_FAN_POWER_DATA,
+    CONF_FAN_POWER_ON_DATA,
+    CONF_FAN_POWER_OFF_DATA,
+    CONF_FAN_SPEED_1_DATA,
+    CONF_FAN_SPEED_2_DATA,
+    CONF_FAN_SPEED_3_DATA,
+    CONF_FAN_SPEED_4_DATA,
+    CONF_FAN_SPEED_5_DATA,
+    CONF_FAN_SPEED_6_DATA,
+    CONF_FAN_OSCILLATE_DATA,
+    CONF_FAN_OSCILLATE_ON_DATA,
+    CONF_FAN_OSCILLATE_OFF_DATA,
+    CONF_FAN_DIRECTION_FORWARD_DATA,
+    CONF_FAN_DIRECTION_REVERSE_DATA,
+]
+
+FAN_SPEED_NAME_FIELDS = [
+    CONF_FAN_SPEED_1_NAME,
+    CONF_FAN_SPEED_2_NAME,
+    CONF_FAN_SPEED_3_NAME,
+    CONF_FAN_SPEED_4_NAME,
+    CONF_FAN_SPEED_5_NAME,
+    CONF_FAN_SPEED_6_NAME,
+]
+
+HUMIDIFIER_COMMAND_DATA_FIELDS = [
+    CONF_HUMIDIFIER_POWER_DATA,
+    CONF_HUMIDIFIER_POWER_ON_DATA,
+    CONF_HUMIDIFIER_POWER_OFF_DATA,
+    CONF_HUMIDIFIER_MODE_1_DATA,
+    CONF_HUMIDIFIER_MODE_2_DATA,
+    CONF_HUMIDIFIER_MODE_3_DATA,
+    CONF_HUMIDIFIER_MODE_4_DATA,
+    CONF_HUMIDIFIER_MODE_5_DATA,
+    CONF_HUMIDIFIER_MODE_6_DATA,
+]
+
+HUMIDIFIER_MODE_NAME_FIELDS = [
+    CONF_HUMIDIFIER_MODE_1_NAME,
+    CONF_HUMIDIFIER_MODE_2_NAME,
+    CONF_HUMIDIFIER_MODE_3_NAME,
+    CONF_HUMIDIFIER_MODE_4_NAME,
+    CONF_HUMIDIFIER_MODE_5_NAME,
+    CONF_HUMIDIFIER_MODE_6_NAME,
 ]
 
 REMOTE_COMMAND_DATA_FIELDS = [
@@ -442,9 +547,45 @@ _REMOTE_LEARN_OPTIONS = [
     {"value": CONF_REMOTE_BLUE_DATA, "label": "Blue"},
 ]
 
+_FAN_LEARN_OPTIONS = [
+    {"value": "", "label": "— No learning, just save —"},
+    {"value": CONF_FAN_POWER_DATA, "label": "Power Toggle"},
+    {"value": CONF_FAN_POWER_ON_DATA, "label": "Power On"},
+    {"value": CONF_FAN_POWER_OFF_DATA, "label": "Power Off"},
+    {"value": CONF_FAN_SPEED_1_DATA, "label": "Speed 1"},
+    {"value": CONF_FAN_SPEED_2_DATA, "label": "Speed 2"},
+    {"value": CONF_FAN_SPEED_3_DATA, "label": "Speed 3"},
+    {"value": CONF_FAN_SPEED_4_DATA, "label": "Speed 4"},
+    {"value": CONF_FAN_SPEED_5_DATA, "label": "Speed 5"},
+    {"value": CONF_FAN_SPEED_6_DATA, "label": "Speed 6"},
+    {"value": CONF_FAN_OSCILLATE_DATA, "label": "Oscillate Toggle"},
+    {"value": CONF_FAN_OSCILLATE_ON_DATA, "label": "Oscillate On"},
+    {"value": CONF_FAN_OSCILLATE_OFF_DATA, "label": "Oscillate Off"},
+    {"value": CONF_FAN_DIRECTION_FORWARD_DATA, "label": "Direction Forward"},
+    {"value": CONF_FAN_DIRECTION_REVERSE_DATA, "label": "Direction Reverse"},
+]
+
+_HUMIDIFIER_LEARN_OPTIONS = [
+    {"value": "", "label": "— No learning, just save —"},
+    {"value": CONF_HUMIDIFIER_POWER_DATA, "label": "Power Toggle"},
+    {"value": CONF_HUMIDIFIER_POWER_ON_DATA, "label": "Power On"},
+    {"value": CONF_HUMIDIFIER_POWER_OFF_DATA, "label": "Power Off"},
+    {"value": CONF_HUMIDIFIER_MODE_1_DATA, "label": "Mode 1"},
+    {"value": CONF_HUMIDIFIER_MODE_2_DATA, "label": "Mode 2"},
+    {"value": CONF_HUMIDIFIER_MODE_3_DATA, "label": "Mode 3"},
+    {"value": CONF_HUMIDIFIER_MODE_4_DATA, "label": "Mode 4"},
+    {"value": CONF_HUMIDIFIER_MODE_5_DATA, "label": "Mode 5"},
+    {"value": CONF_HUMIDIFIER_MODE_6_DATA, "label": "Mode 6"},
+]
+
 _LEARN_COMMAND_LABEL: dict[str, str] = {
     opt["value"]: opt["label"]
-    for opts in (_MEDIA_LEARN_OPTIONS, _REMOTE_LEARN_OPTIONS)
+    for opts in (
+        _MEDIA_LEARN_OPTIONS,
+        _REMOTE_LEARN_OPTIONS,
+        _FAN_LEARN_OPTIONS,
+        _HUMIDIFIER_LEARN_OPTIONS,
+    )
     for opt in opts
     if opt["value"]
 }
@@ -468,7 +609,7 @@ class TasmotaIrhvacConfigFlow(ConfigFlow, domain=DOMAIN):
         title = data.get(CONF_NAME) or "IR Device"
         command_topic = (data.get(CONF_COMMAND_TOPIC) or "").strip()
         if command_topic:
-            unique_id = f"{data[CONF_DEVICE_TYPE]}:{command_topic}"
+            unique_id = f"{data[CONF_DEVICE_TYPE]}:{title}".lower()
             await self.async_set_unique_id(unique_id)
             self._abort_if_unique_id_configured()
         return self.async_create_entry(title=title, data=data)
@@ -485,6 +626,10 @@ class TasmotaIrhvacConfigFlow(ConfigFlow, domain=DOMAIN):
                 return await self.async_step_media_player()
             if device_type == DEVICE_TYPE_REMOTE:
                 return await self.async_step_remote()
+            if device_type == DEVICE_TYPE_FAN:
+                return await self.async_step_fan()
+            if device_type == DEVICE_TYPE_HUMIDIFIER:
+                return await self.async_step_humidifier()
             return await self.async_step_climate()
 
         schema = vol.Schema(
@@ -511,7 +656,7 @@ class TasmotaIrhvacConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             user_input[CONF_DEVICE_TYPE] = DEVICE_TYPE_CLIMATE
-            await self.async_set_unique_id(user_input[CONF_COMMAND_TOPIC])
+            await self.async_set_unique_id(f"{DEVICE_TYPE_CLIMATE}:{user_input[CONF_NAME]}".lower())
             self._abort_if_unique_id_configured()
             return self.async_create_entry(
                 title=user_input[CONF_NAME],
@@ -563,11 +708,7 @@ class TasmotaIrhvacConfigFlow(ConfigFlow, domain=DOMAIN):
             if CONF_MEDIA_BITS in user_input:
                 user_input[CONF_MEDIA_BITS] = int(user_input[CONF_MEDIA_BITS])
             user_input[CONF_DEVICE_TYPE] = DEVICE_TYPE_MEDIA_PLAYER
-            unique_id = (
-                f"{DEVICE_TYPE_MEDIA_PLAYER}:"
-                f"{user_input[CONF_COMMAND_TOPIC]}:"
-                f"{user_input[CONF_NAME]}"
-            ).lower()
+            unique_id = f"{DEVICE_TYPE_MEDIA_PLAYER}:{user_input[CONF_NAME]}".lower()
             await self.async_set_unique_id(unique_id)
             self._abort_if_unique_id_configured()
             return self.async_create_entry(
@@ -695,11 +836,7 @@ class TasmotaIrhvacConfigFlow(ConfigFlow, domain=DOMAIN):
             if CONF_MEDIA_BITS in user_input:
                 user_input[CONF_MEDIA_BITS] = int(user_input[CONF_MEDIA_BITS])
             user_input[CONF_DEVICE_TYPE] = DEVICE_TYPE_REMOTE
-            unique_id = (
-                f"{DEVICE_TYPE_REMOTE}:"
-                f"{user_input[CONF_COMMAND_TOPIC]}:"
-                f"{user_input[CONF_NAME]}"
-            ).lower()
+            unique_id = f"{DEVICE_TYPE_REMOTE}:{user_input[CONF_NAME]}".lower()
             await self.async_set_unique_id(unique_id)
             self._abort_if_unique_id_configured()
             return self.async_create_entry(
@@ -788,6 +925,114 @@ class TasmotaIrhvacConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="remote", data_schema=schema, errors=errors
         )
 
+    async def async_step_fan(
+        self, user_input: dict[str, Any] | None = None
+    ) -> dict:
+        """Collect the minimum required details for an IR fan."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            user_input[CONF_AVAILABILITY_TOPIC] = (
+                user_input.get(CONF_AVAILABILITY_TOPIC) or ""
+            ).strip()
+            user_input[CONF_LEARN_TOPIC] = (
+                user_input.get(CONF_LEARN_TOPIC) or ""
+            ).strip()
+            if CONF_MEDIA_PROTOCOL in user_input:
+                user_input[CONF_MEDIA_PROTOCOL] = user_input[
+                    CONF_MEDIA_PROTOCOL
+                ].strip().upper()
+            if CONF_MEDIA_BITS in user_input:
+                user_input[CONF_MEDIA_BITS] = int(user_input[CONF_MEDIA_BITS])
+            user_input[CONF_DEVICE_TYPE] = DEVICE_TYPE_FAN
+            unique_id = f"{DEVICE_TYPE_FAN}:{user_input[CONF_NAME]}".lower()
+            await self.async_set_unique_id(unique_id)
+            self._abort_if_unique_id_configured()
+            return self.async_create_entry(
+                title=user_input[CONF_NAME],
+                data=user_input,
+            )
+
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_NAME, default=DEFAULT_FAN_NAME): TextSelector(),
+                vol.Required(
+                    CONF_COMMAND_TOPIC,
+                    default=DEFAULT_IRSEND_COMMAND_TOPIC,
+                ): TextSelector(),
+                vol.Optional(CONF_AVAILABILITY_TOPIC, default=""): TextSelector(),
+                vol.Optional(CONF_LEARN_TOPIC, default=""): TextSelector(),
+                vol.Required(
+                    CONF_MEDIA_PROTOCOL,
+                    default=DEFAULT_MEDIA_PROTOCOL,
+                ): TextSelector(),
+                vol.Required(
+                    CONF_MEDIA_BITS,
+                    default=DEFAULT_MEDIA_BITS,
+                ): NumberSelector(
+                    NumberSelectorConfig(min=1, max=256, step=1, mode=NumberSelectorMode.BOX)
+                ),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="fan", data_schema=schema, errors=errors
+        )
+
+    async def async_step_humidifier(
+        self, user_input: dict[str, Any] | None = None
+    ) -> dict:
+        """Collect the minimum required details for an IR humidifier."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            user_input[CONF_AVAILABILITY_TOPIC] = (
+                user_input.get(CONF_AVAILABILITY_TOPIC) or ""
+            ).strip()
+            user_input[CONF_LEARN_TOPIC] = (
+                user_input.get(CONF_LEARN_TOPIC) or ""
+            ).strip()
+            if CONF_MEDIA_PROTOCOL in user_input:
+                user_input[CONF_MEDIA_PROTOCOL] = user_input[
+                    CONF_MEDIA_PROTOCOL
+                ].strip().upper()
+            if CONF_MEDIA_BITS in user_input:
+                user_input[CONF_MEDIA_BITS] = int(user_input[CONF_MEDIA_BITS])
+            user_input[CONF_DEVICE_TYPE] = DEVICE_TYPE_HUMIDIFIER
+            unique_id = f"{DEVICE_TYPE_HUMIDIFIER}:{user_input[CONF_NAME]}".lower()
+            await self.async_set_unique_id(unique_id)
+            self._abort_if_unique_id_configured()
+            return self.async_create_entry(
+                title=user_input[CONF_NAME],
+                data=user_input,
+            )
+
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_NAME, default=DEFAULT_HUMIDIFIER_NAME): TextSelector(),
+                vol.Required(
+                    CONF_COMMAND_TOPIC,
+                    default=DEFAULT_IRSEND_COMMAND_TOPIC,
+                ): TextSelector(),
+                vol.Optional(CONF_AVAILABILITY_TOPIC, default=""): TextSelector(),
+                vol.Optional(CONF_LEARN_TOPIC, default=""): TextSelector(),
+                vol.Required(
+                    CONF_MEDIA_PROTOCOL,
+                    default=DEFAULT_MEDIA_PROTOCOL,
+                ): TextSelector(),
+                vol.Required(
+                    CONF_MEDIA_BITS,
+                    default=DEFAULT_MEDIA_BITS,
+                ): NumberSelector(
+                    NumberSelectorConfig(min=1, max=256, step=1, mode=NumberSelectorMode.BOX)
+                ),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="humidifier", data_schema=schema, errors=errors
+        )
+
     @staticmethod
     @callback
     def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
@@ -832,6 +1077,10 @@ class TasmotaIrhvacOptionsFlow(OptionsFlow):
             return await self.async_step_media_player_options(user_input)
         if device_type == DEVICE_TYPE_REMOTE:
             return await self.async_step_remote_options(user_input)
+        if device_type == DEVICE_TYPE_FAN:
+            return await self.async_step_fan_options(user_input)
+        if device_type == DEVICE_TYPE_HUMIDIFIER:
+            return await self.async_step_humidifier_options(user_input)
 
         if user_input is not None:
             self._options.update(user_input)
@@ -1254,6 +1503,328 @@ class TasmotaIrhvacOptionsFlow(OptionsFlow):
             data_schema=base_schema,
         )
 
+    async def async_step_fan_options(
+        self, user_input: dict[str, Any] | None = None
+    ) -> dict:
+        """All options for an IR fan."""
+        if user_input is not None:
+            learn_command = (user_input.pop("learn_command", None) or "").strip()
+            if learn_command:
+                pending = dict(user_input)
+                for section_key in (
+                    _SECTION_FAN_CONNECTION,
+                    _SECTION_FAN_POWER,
+                    _SECTION_FAN_SPEEDS,
+                    _SECTION_FAN_OSCILLATION,
+                ):
+                    pending.update(pending.pop(section_key, {}))
+                self._pending_input = pending
+                self._learn_command = learn_command
+                self._device_type_learning = DEVICE_TYPE_FAN
+                self._learning_task = None
+                return await self.async_step_learn_ir()
+
+            for section_key in (
+                _SECTION_FAN_CONNECTION,
+                _SECTION_FAN_POWER,
+                _SECTION_FAN_SPEEDS,
+                _SECTION_FAN_OSCILLATION,
+            ):
+                user_input.update(user_input.pop(section_key, {}))
+            user_input[CONF_AVAILABILITY_TOPIC] = (
+                user_input.get(CONF_AVAILABILITY_TOPIC) or ""
+            ).strip()
+            user_input[CONF_LEARN_TOPIC] = (
+                user_input.get(CONF_LEARN_TOPIC) or ""
+            ).strip()
+            user_input[CONF_FAN_POWER_SENSOR] = (
+                user_input.get(CONF_FAN_POWER_SENSOR) or ""
+            ).strip()
+            if CONF_MQTT_DELAY in user_input:
+                user_input[CONF_MQTT_DELAY] = float(user_input[CONF_MQTT_DELAY])
+            for key in FAN_COMMAND_DATA_FIELDS:
+                user_input[key] = (user_input.get(key) or "").strip()
+            for key in FAN_SPEED_NAME_FIELDS:
+                user_input[key] = (user_input.get(key) or "").strip()
+            if CONF_MEDIA_PROTOCOL in user_input:
+                user_input[CONF_MEDIA_PROTOCOL] = user_input[
+                    CONF_MEDIA_PROTOCOL
+                ].strip().upper()
+            if CONF_MEDIA_BITS in user_input:
+                user_input[CONF_MEDIA_BITS] = int(user_input[CONF_MEDIA_BITS])
+            self._options.update(user_input)
+            return self.async_create_entry(title="", data=self._options)
+
+        current = self._current()
+
+        base_schema = vol.Schema(
+            {
+                vol.Optional("learn_command", default=""): SelectSelector(
+                    SelectSelectorConfig(
+                        options=_FAN_LEARN_OPTIONS,
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+                vol.Required(_SECTION_FAN_CONNECTION): section(
+                    vol.Schema(
+                        {
+                            vol.Required(
+                                CONF_NAME,
+                                default=current.get(CONF_NAME, DEFAULT_FAN_NAME),
+                            ): TextSelector(),
+                            vol.Required(
+                                CONF_COMMAND_TOPIC,
+                                default=current.get(CONF_COMMAND_TOPIC, DEFAULT_IRSEND_COMMAND_TOPIC),
+                            ): TextSelector(),
+                            vol.Optional(
+                                CONF_AVAILABILITY_TOPIC,
+                                description={"suggested_value": current.get(CONF_AVAILABILITY_TOPIC, "")},
+                            ): TextSelector(),
+                            vol.Optional(
+                                CONF_LEARN_TOPIC,
+                                description={"suggested_value": current.get(CONF_LEARN_TOPIC, "")},
+                            ): TextSelector(),
+                            vol.Required(
+                                CONF_MEDIA_PROTOCOL,
+                                default=current.get(CONF_MEDIA_PROTOCOL, DEFAULT_MEDIA_PROTOCOL),
+                            ): TextSelector(),
+                            vol.Required(
+                                CONF_MEDIA_BITS,
+                                default=int(current.get(CONF_MEDIA_BITS, DEFAULT_MEDIA_BITS)),
+                            ): NumberSelector(NumberSelectorConfig(min=1, max=256, step=1, mode=NumberSelectorMode.BOX)),
+                            vol.Optional(
+                                CONF_MQTT_DELAY,
+                                default=float(current.get(CONF_MQTT_DELAY, DEFAULT_MQTT_DELAY)),
+                            ): NumberSelector(NumberSelectorConfig(min=0, max=10, step=0.1, mode=NumberSelectorMode.BOX)),
+                            vol.Optional(
+                                CONF_FAN_POWER_SENSOR,
+                                description={"suggested_value": current.get(CONF_FAN_POWER_SENSOR, "")},
+                            ): EntitySelector(EntitySelectorConfig(domain="binary_sensor")),
+                        }
+                    ),
+                    {"collapsed": False},
+                ),
+                vol.Required(_SECTION_FAN_POWER): section(
+                    vol.Schema(
+                        {
+                            vol.Optional(CONF_FAN_POWER_DATA, description={"suggested_value": current.get(CONF_FAN_POWER_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_FAN_POWER_ON_DATA, description={"suggested_value": current.get(CONF_FAN_POWER_ON_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_FAN_POWER_OFF_DATA, description={"suggested_value": current.get(CONF_FAN_POWER_OFF_DATA, "")}): TextSelector(),
+                        }
+                    ),
+                    {"collapsed": False},
+                ),
+                vol.Required(_SECTION_FAN_SPEEDS): section(
+                    vol.Schema(
+                        {
+                            vol.Optional(CONF_FAN_SPEED_1_NAME, description={"suggested_value": current.get(CONF_FAN_SPEED_1_NAME, "")}): TextSelector(),
+                            vol.Optional(CONF_FAN_SPEED_1_DATA, description={"suggested_value": current.get(CONF_FAN_SPEED_1_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_FAN_SPEED_2_NAME, description={"suggested_value": current.get(CONF_FAN_SPEED_2_NAME, "")}): TextSelector(),
+                            vol.Optional(CONF_FAN_SPEED_2_DATA, description={"suggested_value": current.get(CONF_FAN_SPEED_2_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_FAN_SPEED_3_NAME, description={"suggested_value": current.get(CONF_FAN_SPEED_3_NAME, "")}): TextSelector(),
+                            vol.Optional(CONF_FAN_SPEED_3_DATA, description={"suggested_value": current.get(CONF_FAN_SPEED_3_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_FAN_SPEED_4_NAME, description={"suggested_value": current.get(CONF_FAN_SPEED_4_NAME, "")}): TextSelector(),
+                            vol.Optional(CONF_FAN_SPEED_4_DATA, description={"suggested_value": current.get(CONF_FAN_SPEED_4_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_FAN_SPEED_5_NAME, description={"suggested_value": current.get(CONF_FAN_SPEED_5_NAME, "")}): TextSelector(),
+                            vol.Optional(CONF_FAN_SPEED_5_DATA, description={"suggested_value": current.get(CONF_FAN_SPEED_5_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_FAN_SPEED_6_NAME, description={"suggested_value": current.get(CONF_FAN_SPEED_6_NAME, "")}): TextSelector(),
+                            vol.Optional(CONF_FAN_SPEED_6_DATA, description={"suggested_value": current.get(CONF_FAN_SPEED_6_DATA, "")}): TextSelector(),
+                        }
+                    ),
+                    {"collapsed": True},
+                ),
+                vol.Required(_SECTION_FAN_OSCILLATION): section(
+                    vol.Schema(
+                        {
+                            vol.Optional(CONF_FAN_OSCILLATE_DATA, description={"suggested_value": current.get(CONF_FAN_OSCILLATE_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_FAN_OSCILLATE_ON_DATA, description={"suggested_value": current.get(CONF_FAN_OSCILLATE_ON_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_FAN_OSCILLATE_OFF_DATA, description={"suggested_value": current.get(CONF_FAN_OSCILLATE_OFF_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_FAN_DIRECTION_FORWARD_DATA, description={"suggested_value": current.get(CONF_FAN_DIRECTION_FORWARD_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_FAN_DIRECTION_REVERSE_DATA, description={"suggested_value": current.get(CONF_FAN_DIRECTION_REVERSE_DATA, "")}): TextSelector(),
+                        }
+                    ),
+                    {"collapsed": True},
+                ),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="fan_options",
+            data_schema=base_schema,
+        )
+
+    async def async_step_humidifier_options(
+        self, user_input: dict[str, Any] | None = None
+    ) -> dict:
+        """All options for an IR humidifier."""
+        if user_input is not None:
+            learn_command = (user_input.pop("learn_command", None) or "").strip()
+            if learn_command:
+                pending = dict(user_input)
+                for section_key in (
+                    _SECTION_HUMIDIFIER_CONNECTION,
+                    _SECTION_HUMIDIFIER_POWER,
+                    _SECTION_HUMIDIFIER_MODES,
+                    _SECTION_HUMIDIFIER_SETTINGS,
+                ):
+                    pending.update(pending.pop(section_key, {}))
+                self._pending_input = pending
+                self._learn_command = learn_command
+                self._device_type_learning = DEVICE_TYPE_HUMIDIFIER
+                self._learning_task = None
+                return await self.async_step_learn_ir()
+
+            for section_key in (
+                _SECTION_HUMIDIFIER_CONNECTION,
+                _SECTION_HUMIDIFIER_POWER,
+                _SECTION_HUMIDIFIER_MODES,
+                _SECTION_HUMIDIFIER_SETTINGS,
+            ):
+                user_input.update(user_input.pop(section_key, {}))
+            user_input[CONF_AVAILABILITY_TOPIC] = (
+                user_input.get(CONF_AVAILABILITY_TOPIC) or ""
+            ).strip()
+            user_input[CONF_LEARN_TOPIC] = (
+                user_input.get(CONF_LEARN_TOPIC) or ""
+            ).strip()
+            # Optional entity selectors return "" when unset
+            user_input[CONF_HUMIDIFIER_HUMIDITY_SENSOR] = (
+                user_input.get(CONF_HUMIDIFIER_HUMIDITY_SENSOR) or ""
+            ).strip()
+            user_input[CONF_HUMIDIFIER_POWER_SENSOR] = (
+                user_input.get(CONF_HUMIDIFIER_POWER_SENSOR) or ""
+            ).strip()
+            if CONF_MQTT_DELAY in user_input:
+                user_input[CONF_MQTT_DELAY] = float(user_input[CONF_MQTT_DELAY])
+            for key in HUMIDIFIER_COMMAND_DATA_FIELDS:
+                user_input[key] = (user_input.get(key) or "").strip()
+            for key in HUMIDIFIER_MODE_NAME_FIELDS:
+                user_input[key] = (user_input.get(key) or "").strip()
+            if CONF_MEDIA_PROTOCOL in user_input:
+                user_input[CONF_MEDIA_PROTOCOL] = user_input[
+                    CONF_MEDIA_PROTOCOL
+                ].strip().upper()
+            if CONF_MEDIA_BITS in user_input:
+                user_input[CONF_MEDIA_BITS] = int(user_input[CONF_MEDIA_BITS])
+            for key in (
+                CONF_HUMIDIFIER_MIN_HUMIDITY,
+                CONF_HUMIDIFIER_MAX_HUMIDITY,
+                CONF_HUMIDIFIER_HUMIDITY_STEP,
+            ):
+                if key in user_input:
+                    user_input[key] = float(user_input[key])
+            self._options.update(user_input)
+            return self.async_create_entry(title="", data=self._options)
+
+        current = self._current()
+
+        base_schema = vol.Schema(
+            {
+                vol.Optional("learn_command", default=""): SelectSelector(
+                    SelectSelectorConfig(
+                        options=_HUMIDIFIER_LEARN_OPTIONS,
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+                vol.Required(_SECTION_HUMIDIFIER_CONNECTION): section(
+                    vol.Schema(
+                        {
+                            vol.Required(
+                                CONF_NAME,
+                                default=current.get(CONF_NAME, DEFAULT_HUMIDIFIER_NAME),
+                            ): TextSelector(),
+                            vol.Required(
+                                CONF_COMMAND_TOPIC,
+                                default=current.get(CONF_COMMAND_TOPIC, DEFAULT_IRSEND_COMMAND_TOPIC),
+                            ): TextSelector(),
+                            vol.Optional(
+                                CONF_AVAILABILITY_TOPIC,
+                                description={"suggested_value": current.get(CONF_AVAILABILITY_TOPIC, "")},
+                            ): TextSelector(),
+                            vol.Optional(
+                                CONF_LEARN_TOPIC,
+                                description={"suggested_value": current.get(CONF_LEARN_TOPIC, "")},
+                            ): TextSelector(),
+                            vol.Required(
+                                CONF_MEDIA_PROTOCOL,
+                                default=current.get(CONF_MEDIA_PROTOCOL, DEFAULT_MEDIA_PROTOCOL),
+                            ): TextSelector(),
+                            vol.Required(
+                                CONF_MEDIA_BITS,
+                                default=int(current.get(CONF_MEDIA_BITS, DEFAULT_MEDIA_BITS)),
+                            ): NumberSelector(NumberSelectorConfig(min=1, max=256, step=1, mode=NumberSelectorMode.BOX)),
+                            vol.Optional(
+                                CONF_MQTT_DELAY,
+                                default=float(current.get(CONF_MQTT_DELAY, DEFAULT_MQTT_DELAY)),
+                            ): NumberSelector(NumberSelectorConfig(min=0, max=10, step=0.1, mode=NumberSelectorMode.BOX)),
+                            vol.Optional(
+                                CONF_HUMIDIFIER_HUMIDITY_SENSOR,
+                                description={"suggested_value": current.get(CONF_HUMIDIFIER_HUMIDITY_SENSOR, "")},
+                            ): EntitySelector(EntitySelectorConfig(domain="sensor")),
+                            vol.Optional(
+                                CONF_HUMIDIFIER_POWER_SENSOR,
+                                description={"suggested_value": current.get(CONF_HUMIDIFIER_POWER_SENSOR, "")},
+                            ): EntitySelector(EntitySelectorConfig(domain="binary_sensor")),
+                        }
+                    ),
+                    {"collapsed": False},
+                ),
+                vol.Required(_SECTION_HUMIDIFIER_POWER): section(
+                    vol.Schema(
+                        {
+                            vol.Optional(CONF_HUMIDIFIER_POWER_DATA, description={"suggested_value": current.get(CONF_HUMIDIFIER_POWER_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_HUMIDIFIER_POWER_ON_DATA, description={"suggested_value": current.get(CONF_HUMIDIFIER_POWER_ON_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_HUMIDIFIER_POWER_OFF_DATA, description={"suggested_value": current.get(CONF_HUMIDIFIER_POWER_OFF_DATA, "")}): TextSelector(),
+                        }
+                    ),
+                    {"collapsed": False},
+                ),
+                vol.Required(_SECTION_HUMIDIFIER_MODES): section(
+                    vol.Schema(
+                        {
+                            vol.Optional(CONF_HUMIDIFIER_MODE_1_NAME, description={"suggested_value": current.get(CONF_HUMIDIFIER_MODE_1_NAME, "")}): TextSelector(),
+                            vol.Optional(CONF_HUMIDIFIER_MODE_1_DATA, description={"suggested_value": current.get(CONF_HUMIDIFIER_MODE_1_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_HUMIDIFIER_MODE_2_NAME, description={"suggested_value": current.get(CONF_HUMIDIFIER_MODE_2_NAME, "")}): TextSelector(),
+                            vol.Optional(CONF_HUMIDIFIER_MODE_2_DATA, description={"suggested_value": current.get(CONF_HUMIDIFIER_MODE_2_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_HUMIDIFIER_MODE_3_NAME, description={"suggested_value": current.get(CONF_HUMIDIFIER_MODE_3_NAME, "")}): TextSelector(),
+                            vol.Optional(CONF_HUMIDIFIER_MODE_3_DATA, description={"suggested_value": current.get(CONF_HUMIDIFIER_MODE_3_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_HUMIDIFIER_MODE_4_NAME, description={"suggested_value": current.get(CONF_HUMIDIFIER_MODE_4_NAME, "")}): TextSelector(),
+                            vol.Optional(CONF_HUMIDIFIER_MODE_4_DATA, description={"suggested_value": current.get(CONF_HUMIDIFIER_MODE_4_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_HUMIDIFIER_MODE_5_NAME, description={"suggested_value": current.get(CONF_HUMIDIFIER_MODE_5_NAME, "")}): TextSelector(),
+                            vol.Optional(CONF_HUMIDIFIER_MODE_5_DATA, description={"suggested_value": current.get(CONF_HUMIDIFIER_MODE_5_DATA, "")}): TextSelector(),
+                            vol.Optional(CONF_HUMIDIFIER_MODE_6_NAME, description={"suggested_value": current.get(CONF_HUMIDIFIER_MODE_6_NAME, "")}): TextSelector(),
+                            vol.Optional(CONF_HUMIDIFIER_MODE_6_DATA, description={"suggested_value": current.get(CONF_HUMIDIFIER_MODE_6_DATA, "")}): TextSelector(),
+                        }
+                    ),
+                    {"collapsed": True},
+                ),
+                vol.Required(_SECTION_HUMIDIFIER_SETTINGS): section(
+                    vol.Schema(
+                        {
+                            vol.Required(
+                                CONF_HUMIDIFIER_MIN_HUMIDITY,
+                                default=float(current.get(CONF_HUMIDIFIER_MIN_HUMIDITY, DEFAULT_HUMIDIFIER_MIN_HUMIDITY)),
+                            ): NumberSelector(NumberSelectorConfig(min=0, max=100, step=1, mode=NumberSelectorMode.BOX)),
+                            vol.Required(
+                                CONF_HUMIDIFIER_MAX_HUMIDITY,
+                                default=float(current.get(CONF_HUMIDIFIER_MAX_HUMIDITY, DEFAULT_HUMIDIFIER_MAX_HUMIDITY)),
+                            ): NumberSelector(NumberSelectorConfig(min=0, max=100, step=1, mode=NumberSelectorMode.BOX)),
+                            vol.Required(
+                                CONF_HUMIDIFIER_HUMIDITY_STEP,
+                                default=float(current.get(CONF_HUMIDIFIER_HUMIDITY_STEP, DEFAULT_HUMIDIFIER_HUMIDITY_STEP)),
+                            ): NumberSelector(NumberSelectorConfig(min=1, max=20, step=1, mode=NumberSelectorMode.BOX)),
+                        }
+                    ),
+                    {"collapsed": False},
+                ),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="humidifier_options",
+            data_schema=base_schema,
+        )
+
     # ------------------------------------------------------------------
     # IR Learning
     # ------------------------------------------------------------------
@@ -1288,6 +1859,10 @@ class TasmotaIrhvacOptionsFlow(OptionsFlow):
 
         if self._device_type_learning == DEVICE_TYPE_REMOTE:
             return self.async_show_progress_done(next_step_id="remote_options")
+        if self._device_type_learning == DEVICE_TYPE_FAN:
+            return self.async_show_progress_done(next_step_id="fan_options")
+        if self._device_type_learning == DEVICE_TYPE_HUMIDIFIER:
+            return self.async_show_progress_done(next_step_id="humidifier_options")
         return self.async_show_progress_done(next_step_id="media_player_options")
 
     async def _async_wait_for_ir(self) -> str:

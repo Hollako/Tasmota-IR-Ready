@@ -201,6 +201,20 @@ class TasmotaIrRemote(RestoreEntity, RemoteEntity):
             if (config.get(field) or "").strip()
         }
 
+        # Custom commands added via the panel (list of {name, data} dicts)
+        extra_cmds = config.get("remote_extra_commands") or []
+        if isinstance(extra_cmds, str):
+            try:
+                extra_cmds = json.loads(extra_cmds)
+            except Exception:
+                extra_cmds = []
+        for item in (extra_cmds if isinstance(extra_cmds, list) else []):
+            if isinstance(item, dict):
+                name = str(item.get("name") or "").strip()
+                data = str(item.get("data") or "").strip()
+                if name and data:
+                    self._commands[name.lower()] = data
+
         # Source mode setup
         self._source_mode: str = config.get(CONF_MEDIA_SOURCE_MODE, DEFAULT_MEDIA_SOURCE_MODE)
         self._cycle_data: str = (config.get(CONF_MEDIA_SOURCE_CYCLE_DATA) or "").strip()

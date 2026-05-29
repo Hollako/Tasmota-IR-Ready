@@ -1,17 +1,22 @@
-"""The Tasmota IRHVAC climate component."""
+"""The Tasmota IR Ready component."""
 from pathlib import Path
 
 from homeassistant.components import panel_custom
+from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 from .const import (
     CONF_DEVICE_TYPE,
+    DATA_FAN_KEY,
+    DATA_HUMIDIFIER_KEY,
     DATA_KEY,
     DATA_MEDIA_KEY,
     DATA_REMOTE_KEY,
     DEVICE_TYPE_CLIMATE,
+    DEVICE_TYPE_FAN,
+    DEVICE_TYPE_HUMIDIFIER,
     DEVICE_TYPE_MEDIA_PLAYER,
     DEVICE_TYPE_REMOTE,
     DOMAIN,
@@ -25,12 +30,17 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     await hass.http.async_register_static_paths([
         StaticPathConfig(f"/{DOMAIN}_panel", str(www_dir), cache_headers=False)
     ])
+
+    # Register the Lovelace remote card so it's available on all dashboards
+    # without requiring a manual resource entry.
+    add_extra_js_url(hass, f"/{DOMAIN}_panel/remote_card.js")
+
     await panel_custom.async_register_panel(
         hass,
-        webcomponent_name="tasmota-irhvac-panel",
+        webcomponent_name="tasmota-ir-ready-panel",
         sidebar_title="IR Manager",
         sidebar_icon="mdi:remote",
-        frontend_url_path="tasmota-irhvac",
+        frontend_url_path="tasmota-ir-ready",
         module_url=f"/{DOMAIN}_panel/panel.js",
         embed_iframe=False,
         require_admin=False,
@@ -46,6 +56,10 @@ def _entry_platforms(entry: ConfigEntry) -> list[str]:
         return ["media_player"]
     if device_type == DEVICE_TYPE_REMOTE:
         return ["remote"]
+    if device_type == DEVICE_TYPE_FAN:
+        return ["fan"]
+    if device_type == DEVICE_TYPE_HUMIDIFIER:
+        return ["humidifier"]
     return ["climate", "switch"]
 
 
@@ -70,6 +84,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.data.get(DATA_KEY, {}).pop(entry.entry_id, None)
         hass.data.get(DATA_MEDIA_KEY, {}).pop(entry.entry_id, None)
         hass.data.get(DATA_REMOTE_KEY, {}).pop(entry.entry_id, None)
+        hass.data.get(DATA_FAN_KEY, {}).pop(entry.entry_id, None)
+        hass.data.get(DATA_HUMIDIFIER_KEY, {}).pop(entry.entry_id, None)
     return unload_ok
 
 

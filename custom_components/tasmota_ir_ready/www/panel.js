@@ -1,7 +1,7 @@
 /**
- * Tasmota IRHVAC – Custom Sidebar Panel
+ * Tasmota IR Ready – Custom Sidebar Panel
  * Vanilla JS Web Component, no build step required.
- * Registers as <tasmota-irhvac-panel>.
+ * Registers as <tasmota-ir-ready-panel>.
  */
 
 // ---------------------------------------------------------------------------
@@ -208,7 +208,7 @@ const SECTIONS = {
         rf("name", "Device Name"),
         rf("command_topic", "MQTT Command Topic"),
         f("availability_topic", "Availability Topic (optional)"),
-        ent("power_sensor", "State Sensor (optional)", "binary_sensor"),
+        ent("power_sensor", "Power Sensor (optional)", "binary_sensor"),
         f("learn_topic", "IR Learn Topic (for learning)"),
         rf("media_protocol", "IR Protocol (e.g. NEC)"),
         rn("media_bits", "IR Bits", 1, 128, 1),
@@ -241,23 +241,7 @@ const SECTIONS = {
       id: "mp_sources",
       label: "Sources",
       fields: [
-        { type: "section-header", label: "Cycle Source" },
-        ir("media_source_cycle_data", "Cycle Button IR Code"),
-        n("media_source_cycle_delay", "Cycle Delay (s)", 0, 10, 0.05, "s"),
-        { type: "divider" },
-        { type: "section-header", label: "Direct Sources" },
-        f("media_source_1_name", "Source 1 Name", { paired: true }),
-        ir("media_source_1_data", "Source 1 IR Code"),
-        f("media_source_2_name", "Source 2 Name", { paired: true }),
-        ir("media_source_2_data", "Source 2 IR Code"),
-        f("media_source_3_name", "Source 3 Name", { paired: true }),
-        ir("media_source_3_data", "Source 3 IR Code"),
-        f("media_source_4_name", "Source 4 Name", { paired: true }),
-        ir("media_source_4_data", "Source 4 IR Code"),
-        f("media_source_5_name", "Source 5 Name", { paired: true }),
-        ir("media_source_5_data", "Source 5 IR Code"),
-        f("media_source_6_name", "Source 6 Name", { paired: true }),
-        ir("media_source_6_data", "Source 6 IR Code"),
+        { type: "mp-sources" },
       ],
     },
   ],
@@ -270,7 +254,7 @@ const SECTIONS = {
         rf("name", "Device Name"),
         rf("command_topic", "MQTT Command Topic"),
         f("availability_topic", "Availability Topic (optional)"),
-        ent("power_sensor", "State Sensor (optional)", "binary_sensor"),
+        ent("power_sensor", "Power Sensor (optional)", "binary_sensor"),
         f("learn_topic", "IR Learn Topic (for learning)"),
         rf("media_protocol", "IR Protocol (e.g. NEC)"),
         rn("media_bits", "IR Bits", 1, 128, 1),
@@ -343,18 +327,95 @@ const SECTIONS = {
         n("media_source_cycle_delay", "Cycle Delay (s)", 0, 10, 0.05, "s"),
         { type: "divider" },
         { type: "section-header", label: "Direct Sources" },
-        f("media_source_1_name", "Source 1 Name", { paired: true }),
-        ir("media_source_1_data", "Source 1 IR Code"),
-        f("media_source_2_name", "Source 2 Name", { paired: true }),
-        ir("media_source_2_data", "Source 2 IR Code"),
-        f("media_source_3_name", "Source 3 Name", { paired: true }),
-        ir("media_source_3_data", "Source 3 IR Code"),
-        f("media_source_4_name", "Source 4 Name", { paired: true }),
-        ir("media_source_4_data", "Source 4 IR Code"),
-        f("media_source_5_name", "Source 5 Name", { paired: true }),
-        ir("media_source_5_data", "Source 5 IR Code"),
-        f("media_source_6_name", "Source 6 Name", { paired: true }),
-        ir("media_source_6_data", "Source 6 IR Code"),
+        { type: "dynamic-sources" },
+      ],
+    },
+    {
+      id: "rm_custom",
+      label: "Custom Commands",
+      fields: [{ type: "custom-commands" }],
+    },
+  ],
+
+  fan: [
+    {
+      id: "fan_connection",
+      label: "Connection",
+      fields: [
+        rf("name", "Device Name"),
+        rf("command_topic", "MQTT Command Topic"),
+        f("availability_topic", "Availability Topic (optional)"),
+        f("learn_topic", "IR Learn Topic (for learning)"),
+        rf("media_protocol", "IR Protocol (e.g. NEC)"),
+        rn("media_bits", "IR Bits", 1, 128, 1),
+        n("mqtt_delay", "MQTT Delay", 0, 10, 0.1, "s"),
+        ent("fan_power_sensor", "Power Sensor (optional)", "binary_sensor"),
+      ],
+    },
+    {
+      id: "fan_power",
+      label: "Power",
+      fields: [
+        ir("fan_power_data", "Power Toggle"),
+        ir("fan_power_on_data", "Power On"),
+        ir("fan_power_off_data", "Power Off"),
+      ],
+    },
+    {
+      id: "fan_speeds",
+      label: "Speeds",
+      fields: [{ type: "fan-speeds" }],
+    },
+    {
+      id: "fan_osc_dir",
+      label: "Oscillation & Direction",
+      fields: [
+        ir("fan_oscillate_data", "Oscillate Toggle"),
+        ir("fan_oscillate_on_data", "Oscillate On"),
+        ir("fan_oscillate_off_data", "Oscillate Off"),
+        ir("fan_direction_forward_data", "Direction Forward"),
+        ir("fan_direction_reverse_data", "Direction Reverse"),
+      ],
+    },
+  ],
+
+  humidifier: [
+    {
+      id: "hum_connection",
+      label: "Connection",
+      fields: [
+        rf("name", "Device Name"),
+        rf("command_topic", "MQTT Command Topic"),
+        f("availability_topic", "Availability Topic (optional)"),
+        f("learn_topic", "IR Learn Topic (for learning)"),
+        rf("media_protocol", "IR Protocol (e.g. NEC)"),
+        rn("media_bits", "IR Bits", 1, 128, 1),
+        n("mqtt_delay", "MQTT Delay", 0, 10, 0.1, "s"),
+        ent("humidifier_humidity_sensor", "Current Humidity Sensor (optional)", "sensor"),
+        ent("humidifier_power_sensor", "Power Sensor (optional)", "binary_sensor"),
+      ],
+    },
+    {
+      id: "hum_power",
+      label: "Power",
+      fields: [
+        ir("humidifier_power_data", "Power Toggle"),
+        ir("humidifier_power_on_data", "Power On"),
+        ir("humidifier_power_off_data", "Power Off"),
+      ],
+    },
+    {
+      id: "hum_modes",
+      label: "Modes",
+      fields: [{ type: "humidifier-modes" }],
+    },
+    {
+      id: "hum_settings",
+      label: "Humidity Settings",
+      fields: [
+        n("humidifier_min_humidity", "Min Target Humidity", 0, 100, 1, "%"),
+        n("humidifier_max_humidity", "Max Target Humidity", 0, 100, 1, "%"),
+        n("humidifier_humidity_step", "Humidity Step", 1, 20, 1, "%"),
       ],
     },
   ],
@@ -365,6 +426,19 @@ const SECTIONS = {
 // created entries are immediately save-able without manual input.
 // Saved entry values always override these.
 // ---------------------------------------------------------------------------
+
+// Fields that are device-specific (MQTT topics, HA entity IDs, device name).
+// Excluded when saving a profile to the IR database so shared profiles stay
+// portable, and skipped when loading a profile so the user's own connection
+// settings are never overwritten.
+const DB_SKIP_FIELDS = new Set([
+  "command_topic", "state_topic", "state_topic_2", "availability_topic",
+  "temperature_sensor", "humidity_sensor", "power_sensor",
+  "name", "learn_topic",
+  "humidifier_humidity_sensor",
+  "fan_power_sensor",
+  "humidifier_power_sensor",
+]);
 
 const FIELD_DEFAULTS = {
   // Climate — capabilities
@@ -394,6 +468,10 @@ const FIELD_DEFAULTS = {
   media_bits:              32,
   media_source_cycle_delay: 0.5,
   media_source_mode:       "direct",
+  // Humidifier humidity settings
+  humidifier_min_humidity:  30,
+  humidifier_max_humidity:  80,
+  humidifier_humidity_step: 5,
 };
 
 // ---------------------------------------------------------------------------
@@ -495,6 +573,22 @@ const CSS = `
   border-left-color: rgba(255,255,255,.5);
 }
 .sidebar-item.active:hover { background: var(--primary-color, #03a9f4); }
+.sidebar-dup-btn {
+  margin-left: auto;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity .15s;
+  color: inherit;
+  line-height: 1;
+}
+.sidebar-item:hover .sidebar-dup-btn { opacity: .6; }
+.sidebar-item:hover .sidebar-dup-btn:hover { opacity: 1; background: rgba(0,0,0,.08); }
+.sidebar-item.active .sidebar-dup-btn:hover { background: rgba(255,255,255,.2); }
 .sidebar-badge {
   font-size: .7rem;
   background: var(--accent-color, #ff9800);
@@ -688,6 +782,16 @@ const CSS = `
   color: #fff;
 }
 .btn-icon:disabled { opacity: .5; cursor: default; }
+
+/* ---- custom commands section ---- */
+.custom-commands-wrap { display: flex; flex-direction: column; gap: 8px; padding: 4px 0 8px; }
+.custom-cmds-list { display: flex; flex-direction: column; gap: 6px; }
+.custom-cmd-row { display: flex; align-items: center; gap: 6px; }
+.custom-cmd-name { width: 100px; flex-shrink: 0; }
+.custom-cmd-data { flex: 1; min-width: 80px; }
+.btn-del-cmd { background: var(--error-color, #f44336); color: #fff; }
+.custom-cmds-empty { margin: 0 0 4px; font-size: .85rem; color: var(--secondary-text-color, #666); }
+.btn-add-custom-cmd { align-self: flex-start; }
 
 /* ---- multi-select pills ---- */
 .multi-select-wrap {
@@ -902,6 +1006,51 @@ const CSS = `
 }
 .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
 
+/* ---- IR database source tabs ---- */
+.db-src-tabs { display: flex; gap: 6px; margin: 10px 0 12px; }
+.db-src-tab {
+  flex: 1; padding: 7px 10px;
+  border: 1px solid var(--divider-color, #ddd); border-radius: 6px;
+  cursor: pointer; background: var(--secondary-background-color, #f5f5f5);
+  font-size: .85rem; color: var(--primary-text-color, #212121); transition: all .15s;
+}
+.db-src-tab.active {
+  background: var(--primary-color, #03a9f4); color: #fff;
+  border-color: var(--primary-color, #03a9f4);
+}
+
+/* ---- Flipper IRDB browser ---- */
+.flipper-breadcrumb {
+  font-size: .78rem; color: var(--secondary-text-color, #666);
+  margin-bottom: 6px; min-height: 1.2em; line-height: 1.6;
+}
+.flipper-bc-link {
+  cursor: pointer; color: var(--primary-color, #03a9f4);
+  text-decoration: underline;
+}
+.flipper-list {
+  border: 1px solid var(--divider-color, #ddd); border-radius: 6px;
+  max-height: 260px; overflow-y: auto;
+}
+.flipper-item {
+  padding: 8px 12px; cursor: pointer; font-size: .88rem;
+  display: flex; align-items: center; gap: 8px;
+  border-bottom: 1px solid var(--divider-color, #eee); transition: background .1s;
+}
+.flipper-item:last-child { border-bottom: none; }
+.flipper-item:hover { background: var(--secondary-background-color, #f5f5f5); }
+.flipper-item.selected {
+  background: color-mix(in srgb, var(--primary-color, #03a9f4) 12%, transparent);
+}
+.flipper-loading {
+  padding: 20px; text-align: center;
+  color: var(--secondary-text-color, #666); font-size: .88rem;
+}
+.flipper-status {
+  margin-top: 6px; font-size: .82rem;
+  color: var(--secondary-text-color, #666); min-height: 1.4em;
+}
+
 /* ---- learning overlay ---- */
 .learn-overlay {
   position: fixed; inset: 0;
@@ -928,6 +1077,44 @@ const CSS = `
   margin: 0 auto 20px;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---- Media Player source-mode tabs ---- */
+.src-mode-tabs {
+  display: flex;
+  margin: 4px 0 10px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--divider-color, #e0e0e0);
+  width: fit-content;
+}
+.src-mode-tab {
+  padding: 7px 18px;
+  border: none;
+  background: var(--card-background-color, #fff);
+  color: var(--secondary-text-color, #666);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.85em;
+  transition: background 0.15s;
+}
+.src-mode-tab:not(:last-child) {
+  border-right: 1px solid var(--divider-color, #e0e0e0);
+}
+.src-mode-tab.active {
+  background: var(--primary-color, #03a9f4);
+  color: #fff;
+  font-weight: 600;
+}
+.src-mode-tab:hover:not(.active) {
+  background: var(--secondary-background-color, #f5f5f5);
+}
+.src-cycle-hint {
+  font-size: 0.78em;
+  color: var(--secondary-text-color, #888);
+  padding: 0 0 8px;
+  width: 100%;
+  font-style: italic;
+}
 `;
 
 // ---------------------------------------------------------------------------
@@ -946,6 +1133,9 @@ class TasmotaIrhvacPanel extends HTMLElement {
     this._statusTimer = null;
     this._learning = false; // currently showing learn overlay?
     this._narrow = false;
+    this._sourceCount = 2; // number of visible source rows in the dynamic sources section
+    this._fanSpeedCount = 2; // number of visible fan speed rows
+    this._humidifierModeCount = 2; // number of visible humidifier mode rows
   }
 
   set hass(hass) {
@@ -990,9 +1180,45 @@ class TasmotaIrhvacPanel extends HTMLElement {
     // Merge defaults first so new entries are immediately save-able,
     // then override with any values the entry already has saved.
     this._editValues = { ...FIELD_DEFAULTS, ...(entry.options || {}) };
+    this._sourceCount = Math.max(2, this._countFilledSources());
+    this._fanSpeedCount = Math.max(2, this._countFilledFanSpeeds());
+    this._humidifierModeCount = Math.max(2, this._countFilledHumidifierModes());
     const sections = this._getSections();
     this._activeTab = sections.length ? sections[0].id : null;
     this._render();
+  }
+
+  /** Count the highest source slot index that has either a name or data value. */
+  _countFilledSources() {
+    let highest = 0;
+    for (let i = 1; i <= 6; i++) {
+      const name = (this._editValues[`media_source_${i}_name`] || "").trim();
+      const data = (this._editValues[`media_source_${i}_data`] || "").trim();
+      if (name || data) highest = i;
+    }
+    return highest;
+  }
+
+  /** Count the highest fan speed slot index that has either a name or data value. */
+  _countFilledFanSpeeds() {
+    let highest = 0;
+    for (let i = 1; i <= 6; i++) {
+      const name = (this._editValues[`fan_speed_${i}_name`] || "").trim();
+      const data = (this._editValues[`fan_speed_${i}_data`] || "").trim();
+      if (name || data) highest = i;
+    }
+    return highest;
+  }
+
+  /** Count the highest humidifier mode slot index that has either a name or data value. */
+  _countFilledHumidifierModes() {
+    let highest = 0;
+    for (let i = 1; i <= 6; i++) {
+      const name = (this._editValues[`humidifier_mode_${i}_name`] || "").trim();
+      const data = (this._editValues[`humidifier_mode_${i}_data`] || "").trim();
+      if (name || data) highest = i;
+    }
+    return highest;
   }
 
   _getSections() {
@@ -1060,9 +1286,13 @@ class TasmotaIrhvacPanel extends HTMLElement {
     const btn = this._shadow.querySelector("#btn-save");
     if (btn) btn.disabled = true;
     try {
-      // Auto-detect source mode: cycle if cycle data is set, otherwise direct
-      const cycleData = (this._editValues["media_source_cycle_data"] || "").trim();
-      this._editValues["media_source_mode"] = cycleData ? "cycle" : "direct";
+      // Source mode:
+      // - Media player: trust the user's explicit tab selection (already in _editValues)
+      // - Remote: auto-detect from cycle data presence (both types coexist on that tab)
+      if (this._selected.options?.device_type !== "media_player") {
+        const cycleData = (this._editValues["media_source_cycle_data"] || "").trim();
+        this._editValues["media_source_mode"] = cycleData ? "cycle" : "direct";
+      }
 
       await this._hass.callWS({
         type: "tasmota_ir_ready/save_options",
@@ -1133,6 +1363,81 @@ class TasmotaIrhvacPanel extends HTMLElement {
     });
   }
 
+  // -----------------------------------------------------------------------
+  // Duplicate
+  // -----------------------------------------------------------------------
+
+  _openDuplicateDialog(entry = this._selected) {
+    if (!entry) return;
+    const isClimate = (entry.options?.device_type || "climate") === "climate";
+
+    const overlay = document.createElement("div");
+    overlay.className = "modal-overlay";
+    overlay.innerHTML = `
+      <div class="modal">
+        <h3>Duplicate Device</h3>
+        <p style="margin:0 0 12px;font-size:.85rem;color:var(--secondary-text-color,#666)">
+          Creates a copy of <strong>${this._escHtml(entry.title)}</strong> with the same settings.<br>
+          Connection fields will be empty — fill them in after duplicating.
+        </p>
+        <div class="field-row">
+          <span class="field-label">Name <span class="required-star">*</span></span>
+          <input type="text" class="field-input" id="dup-name" value="" autocomplete="off" placeholder="e.g. Bedroom AC">
+        </div>
+        <div class="field-row">
+          <span class="field-label">Command Topic <span class="required-star">*</span></span>
+          <input type="text" class="field-input" id="dup-command_topic" value="" autocomplete="off" placeholder="e.g. bedroom_ir/cmnd/IRHVAC">
+        </div>
+        ${isClimate ? `
+        <div class="field-row">
+          <span class="field-label">State Topic <span class="required-star">*</span></span>
+          <input type="text" class="field-input" id="dup-state_topic" value="" autocomplete="off" placeholder="e.g. bedroom_ir/tele/RESULT">
+        </div>` : ""}
+        <div class="modal-actions">
+          <button class="btn btn-secondary" id="dup-cancel">Cancel</button>
+          <button class="btn btn-primary" id="dup-ok">Duplicate</button>
+        </div>
+      </div>`;
+    this._shadow.appendChild(overlay);
+    overlay.querySelector("#dup-name").focus();
+
+    overlay.querySelector("#dup-cancel").addEventListener("click", () => overlay.remove());
+    overlay.querySelector("#dup-ok").addEventListener("click", async () => {
+      const btn = overlay.querySelector("#dup-ok");
+      const name = overlay.querySelector("#dup-name").value.trim();
+      const commandTopic = overlay.querySelector("#dup-command_topic").value.trim();
+      const stateTopic = overlay.querySelector("#dup-state_topic")?.value.trim() || "";
+
+      if (!name) { overlay.querySelector("#dup-name").focus(); return; }
+      if (!commandTopic) { overlay.querySelector("#dup-command_topic").focus(); return; }
+      if (isClimate && !stateTopic) { overlay.querySelector("#dup-state_topic").focus(); return; }
+
+      // Set the new required fields and clear all other connection fields
+      const overrides = { name, command_topic: commandTopic };
+      if (isClimate) overrides.state_topic = stateTopic;
+      DB_SKIP_FIELDS.forEach(f => { if (!(f in overrides)) overrides[f] = ""; });
+
+      btn.disabled = true;
+      btn.textContent = "Duplicating...";
+      try {
+        const result = await this._hass.callWS({
+          type: "tasmota_ir_ready/duplicate_entry",
+          entry_id: entry.entry_id,
+          overrides,
+        });
+        overlay.remove();
+        await this._loadEntries();
+        const newEntry = this._entries.find(e => e.entry_id === result.entry_id);
+        if (newEntry) this._selectEntry(newEntry);
+        else this._render();
+        this._showStatus("ok", `Duplicated as "${name}". Fill in the connection fields and save.`);
+      } catch (e) {
+        overlay.remove();
+        this._showStatus("err", `Duplicate failed: ${e.message || e}`);
+      }
+    });
+  }
+
   _openAddDialog() {
     const overlay = document.createElement("div");
     overlay.className = "modal-overlay";
@@ -1142,15 +1447,17 @@ class TasmotaIrhvacPanel extends HTMLElement {
         <div class="field-row">
           <span class="field-label">Device Type</span>
           <div class="custom-select" style="flex:1" id="add-type-wrap">
-            <input type="hidden" id="add-type" value="climate">
+            <input type="hidden" id="add-type" value="media_player">
             <div class="custom-select-trigger" tabindex="0" id="add-type-trigger">
-              <span class="custom-select-label">Climate (HVAC)</span>
+              <span class="custom-select-label">Media Player</span>
               <span class="custom-select-arrow">▾</span>
             </div>
             <div class="custom-select-dropdown" hidden id="add-type-dropdown">
-              <div class="custom-select-option" data-value="media_player">Media Player</div>
+              <div class="custom-select-option selected" data-value="media_player">Media Player</div>
               <div class="custom-select-option" data-value="remote">Remote</div>
-              <div class="custom-select-option selected" data-value="climate">Climate (HVAC)</div>
+              <div class="custom-select-option" data-value="fan">Fan</div>
+              <div class="custom-select-option" data-value="humidifier">Humidifier</div>
+              <div class="custom-select-option" data-value="climate">Climate (HVAC)</div>
             </div>
           </div>
         </div>
@@ -1162,14 +1469,14 @@ class TasmotaIrhvacPanel extends HTMLElement {
           <span class="field-label">Command Topic <span class="required-star">*</span></span>
           <input type="text" class="field-input" id="add-topic" placeholder="cmnd/tasmota_ir/IRHVAC" autocomplete="off">
         </div>
-        <div id="add-climate-fields">
+        <div id="add-climate-fields" style="display:none">
           <div class="field-row">
             <span class="field-label">AC Brand <span class="required-star">*</span></span>
             <input type="text" class="field-input" id="add-vendor" placeholder="e.g. DAIKIN" autocomplete="off">
           </div>
           <div class="field-row">
             <span class="field-label">MQTT State Topic <span class="required-star">*</span></span>
-            <input type="text" class="field-input" id="add-state-topic" placeholder="stat/tasmota_ir/RESULT" autocomplete="off">
+            <input type="text" class="field-input" id="add-state-topic" placeholder="tele/tasmota_ir/RESULT" autocomplete="off">
           </div>
         </div>
         <div class="modal-actions">
@@ -1223,6 +1530,7 @@ class TasmotaIrhvacPanel extends HTMLElement {
       if (deviceType === "climate" && !stateTopic) {
         overlay.querySelector("#add-state-topic").focus(); return;
       }
+      if (!topic) { overlay.querySelector("#add-topic").focus(); return; }
 
       const btn = overlay.querySelector("#add-ok");
       btn.disabled = true;
@@ -1276,23 +1584,37 @@ class TasmotaIrhvacPanel extends HTMLElement {
 
   async _openDatabaseDialog() {
     if (!this._selected) return;
+    const deviceType = this._selected.options?.device_type || this._editValues.device_type || "remote";
 
     const overlay = document.createElement("div");
     overlay.className = "modal-overlay";
     overlay.innerHTML = `
-      <div class="modal">
-        <h3>IR Database</h3>
-        <p style="margin:0;font-size:.85rem;color:var(--secondary-text-color,#666)">
-          Load a saved IR profile into this device, then review and Save.
-        </p>
-        <div class="custom-select" id="db-select-wrap" style="width:100%">
-          <input type="hidden" id="db-select" value="">
-          <div class="custom-select-trigger" tabindex="0" id="db-select-trigger">
-            <span class="custom-select-label">Loading profiles...</span>
-            <span class="custom-select-arrow">▾</span>
-          </div>
-          <div class="custom-select-dropdown" hidden id="db-select-dropdown"></div>
+      <div class="modal" style="width:min(600px,94vw)">
+        <h3>Load IR Database</h3>
+        <div class="db-src-tabs">
+          <button class="db-src-tab" data-src="local">Local Profiles</button>
+          <button class="db-src-tab active" data-src="online">🌐 Online (Flipper IRDB)</button>
         </div>
+
+        <div id="db-local-panel" hidden>
+          <div class="custom-select" style="width:100%">
+            <input type="hidden" id="db-select" value="">
+            <div class="custom-select-trigger" tabindex="0" id="db-select-trigger">
+              <span class="custom-select-label">Loading profiles…</span>
+              <span class="custom-select-arrow">▾</span>
+            </div>
+            <div class="custom-select-dropdown" hidden id="db-select-dropdown"></div>
+          </div>
+        </div>
+
+        <div id="db-online-panel">
+          <div class="flipper-breadcrumb" id="flipper-bc"></div>
+          <div class="flipper-list" id="flipper-list">
+            <div class="flipper-loading">Choose a category to start browsing.</div>
+          </div>
+          <div class="flipper-status" id="flipper-status"></div>
+        </div>
+
         <div class="modal-actions">
           <button class="btn btn-secondary" id="db-cancel">Cancel</button>
           <button class="btn btn-primary" id="db-load" disabled>Load</button>
@@ -1300,40 +1622,37 @@ class TasmotaIrhvacPanel extends HTMLElement {
       </div>`;
     this._shadow.appendChild(overlay);
 
-    const select = overlay.querySelector("#db-select");
-    const selectTrigger = overlay.querySelector("#db-select-trigger");
-    const selectLabel = selectTrigger.querySelector(".custom-select-label");
-    const selectDropdown = overlay.querySelector("#db-select-dropdown");
     const loadButton = overlay.querySelector("#db-load");
-    const selectedType = this._selected.options?.device_type || this._editValues.device_type || "climate";
+
+    // ── Local panel ──────────────────────────────────────────────────────────
+    const select        = overlay.querySelector("#db-select");
+    const selectTrigger = overlay.querySelector("#db-select-trigger");
+    const selectLabel   = selectTrigger.querySelector(".custom-select-label");
+    const selectDropdown = overlay.querySelector("#db-select-dropdown");
     let profiles = [];
 
-    try {
-      const allProfiles = await this._hass.callWS({ type: "tasmota_ir_ready/list_ir_database" });
-      profiles = allProfiles.filter(profile => !profile.device_type || profile.device_type === selectedType);
-      if (!profiles.length) {
-        selectLabel.textContent = `No ${selectedType.replace("_", " ")} profiles found`;
-        selectDropdown.innerHTML = "";
-      } else {
-        select.value = "0";
-        selectDropdown.innerHTML = profiles.map((profile, index) => {
-          const source = profile.source === "custom" ? "Custom" : "Built-in";
-          const detail = profile.brand || profile.model
-            ? ` (${[profile.brand, profile.model].filter(Boolean).join(" ")})`
-            : "";
-          const selected = index === 0 ? " selected" : "";
-          return `<div class="custom-select-option${selected}" data-value="${index}">${source}: ${this._escHtml(profile.label)}${this._escHtml(detail)}</div>`;
-        }).join("");
-        selectLabel.textContent = selectDropdown.querySelector(".custom-select-option.selected")?.textContent || "Select profile";
-        loadButton.disabled = false;
+    (async () => {
+      try {
+        const all = await this._hass.callWS({ type: "tasmota_ir_ready/list_ir_database" });
+        profiles = all.filter(p => !p.device_type || p.device_type === deviceType);
+        if (!profiles.length) {
+          selectLabel.textContent = `No ${deviceType.replace("_", " ")} profiles found`;
+        } else {
+          select.value = "0";
+          selectDropdown.innerHTML = profiles.map((p, i) => {
+            const src = p.source === "custom" ? "Custom" : "Built-in";
+            const detail = (p.brand || p.model)
+              ? ` (${[p.brand, p.model].filter(Boolean).join(" ")})` : "";
+            return `<div class="custom-select-option${i === 0 ? " selected" : ""}" data-value="${i}">${src}: ${this._escHtml(p.label)}${this._escHtml(detail)}</div>`;
+          }).join("");
+          selectLabel.textContent = selectDropdown.querySelector(".selected")?.textContent || "Select profile";
+          if (activeSource === "local") loadButton.disabled = false;
+        }
+      } catch (e) {
+        selectLabel.textContent = "Unable to load profiles";
       }
-    } catch (e) {
-      selectLabel.textContent = "Unable to load profiles";
-      selectDropdown.innerHTML = "";
-      this._showStatus("err", `Database list failed: ${e.message || e}`);
-    }
+    })();
 
-    overlay.querySelector("#db-cancel").addEventListener("click", () => overlay.remove());
     selectTrigger.addEventListener("click", e => {
       e.stopPropagation();
       if (!profiles.length) return;
@@ -1341,43 +1660,220 @@ class TasmotaIrhvacPanel extends HTMLElement {
     });
     selectDropdown.addEventListener("click", e => {
       e.stopPropagation();
-      const option = e.target.closest(".custom-select-option");
-      if (!option) return;
-      select.value = option.dataset.value;
-      selectLabel.textContent = option.textContent;
-      selectDropdown.querySelectorAll(".custom-select-option").forEach(el => el.classList.remove("selected"));
-      option.classList.add("selected");
+      const opt = e.target.closest(".custom-select-option");
+      if (!opt) return;
+      select.value = opt.dataset.value;
+      selectLabel.textContent = opt.textContent;
+      selectDropdown.querySelectorAll(".custom-select-option").forEach(o => o.classList.remove("selected"));
+      opt.classList.add("selected");
       selectDropdown.hidden = true;
+      if (activeSource === "local") loadButton.disabled = false;
     });
-    overlay.addEventListener("click", () => {
-      selectDropdown.hidden = true;
-    });
-    loadButton.addEventListener("click", async () => {
-      const profile = profiles[Number(select.value)];
-      if (!profile) return;
-      loadButton.disabled = true;
-      loadButton.textContent = "Loading...";
-      try {
-        const data = await this._hass.callWS({
-          type: "tasmota_ir_ready/load_ir_database",
-          source: profile.source,
-          path: profile.path,
+    overlay.addEventListener("click", () => { selectDropdown.hidden = true; });
+
+    // ── Online / Flipper panel ────────────────────────────────────────────────
+    const flipperList   = overlay.querySelector("#flipper-list");
+    const flipperBc     = overlay.querySelector("#flipper-bc");
+    const flipperStatus = overlay.querySelector("#flipper-status");
+
+    // Navigation stack: [{label, path, device_type}]
+    const navStack = [];
+    let selectedFilePath = null;
+    let selectedFileDeviceType = deviceType;
+    let onlineBrowseStarted = false;
+
+    const updateBreadcrumb = () => {
+      if (!navStack.length) {
+        flipperBc.innerHTML = `<span style="color:var(--secondary-text-color,#666)">Categories</span>`;
+        return;
+      }
+      const crumbs = [
+        `<a class="flipper-bc-link" data-depth="-1">Categories</a>`,
+        ...navStack.map((s, i) =>
+          `<a class="flipper-bc-link" data-depth="${i}">${this._escHtml(s.label)}</a>`),
+      ].join(" › ");
+      flipperBc.innerHTML = crumbs;
+      flipperBc.querySelectorAll(".flipper-bc-link").forEach(a => {
+        a.addEventListener("click", () => {
+          const depth = parseInt(a.dataset.depth, 10);
+          navStack.length = depth < 0 ? 0 : depth + 1;
+          selectedFilePath = null;
+          loadButton.disabled = true;
+          flipperStatus.textContent = "";
+          browseCurrentLevel();
         });
-        overlay.remove();
-        this._applyProfile(data, "Database profile loaded - review and Save to apply.");
+      });
+    };
+
+    const renderItems = (items) => {
+      if (!items.length) {
+        flipperList.innerHTML = `<div class="flipper-loading">No items found.</div>`;
+        return;
+      }
+      flipperList.innerHTML = items.map(item => {
+        const icon = item.type === "dir" ? "📁" : "📄";
+        return `<div class="flipper-item" data-path="${this._escHtml(item.path)}"
+          data-type="${item.type}" data-dtype="${this._escHtml(item.device_type || "")}">
+          <span>${icon}</span><span>${this._escHtml(item.name)}</span>
+        </div>`;
+      }).join("");
+      flipperList.querySelectorAll(".flipper-item").forEach(el =>
+        el.addEventListener("click", () => onFlipperItemClick(el))
+      );
+    };
+
+    const browseCurrentLevel = async () => {
+      const cur = navStack[navStack.length - 1];
+      const curPath = cur ? cur.path : "";
+      const curDType = cur ? (cur.device_type || deviceType) : deviceType;
+      updateBreadcrumb();
+      flipperList.innerHTML = `<div class="flipper-loading">⏳ Loading…</div>`;
+      try {
+        const { items } = await this._hass.callWS({
+          type: "tasmota_ir_ready/flipper_browse",
+          path: curPath,
+        });
+        // At root level: infer device_type and exclude AC/HVAC folders
+        const filtered = navStack.length === 0
+          ? items.filter(item =>
+              !item.name.startsWith("_") &&
+              !/^acs?$|air.?cond|hvac|climat/i.test(item.name))
+          : items;
+        filtered.forEach(item => {
+          if (!item.device_type) {
+            item.device_type = navStack.length === 0
+              ? inferDeviceType(item.name)
+              : curDType;
+          }
+        });
+        renderItems(filtered);
       } catch (e) {
-        overlay.remove();
-        this._showStatus("err", `Database load failed: ${e.message || e}`);
+        flipperList.innerHTML = `<div class="flipper-loading" style="color:var(--error-color,#f44)">
+          Failed: ${this._escHtml(e.message || String(e))}</div>`;
+      }
+    };
+
+    // Infer device_type from a folder name when not explicitly set
+    const inferDeviceType = (name) => {
+      const n = name.toLowerCase();
+      if (/\bac\b|air.?cond|hvac|climat|heat|cool/.test(n)) return "media_player";
+      if (/audio|speaker|soundbar|amplif|receiver|stereo|hifi/.test(n)) return "media_player";
+      return "remote"; // default: TV sets, projectors, fans, misc
+    };
+
+    const onFlipperItemClick = (el) => {
+      const path = el.dataset.path;
+      const type = el.dataset.type;
+      const dtype = el.dataset.dtype || deviceType;
+      const label = el.querySelector("span:last-child")?.textContent || path;
+
+      if (type === "dir") {
+        navStack.push({ label, path, device_type: dtype });
+        selectedFilePath = null;
+        loadButton.disabled = true;
+        flipperStatus.textContent = "";
+        browseCurrentLevel();
+      } else {
+        flipperList.querySelectorAll(".flipper-item").forEach(i => i.classList.remove("selected"));
+        el.classList.add("selected");
+        selectedFilePath = path;
+        selectedFileDeviceType = dtype;
+        flipperStatus.textContent = `📄 ${label} — click Load to convert and apply`;
+        if (activeSource === "online") loadButton.disabled = false;
+      }
+    };
+
+    // ── Source tab switching ──────────────────────────────────────────────────
+    let activeSource = "online";
+    onlineBrowseStarted = true;
+    browseCurrentLevel();
+
+    const switchSource = (src) => {
+      activeSource = src;
+      overlay.querySelectorAll(".db-src-tab").forEach(t =>
+        t.classList.toggle("active", t.dataset.src === src)
+      );
+      overlay.querySelector("#db-local-panel").hidden  = src !== "local";
+      overlay.querySelector("#db-online-panel").hidden = src !== "online";
+
+      if (src === "local") {
+        loadButton.disabled = !profiles.length;
+      } else {
+        loadButton.disabled = selectedFilePath === null;
+        if (!onlineBrowseStarted) {
+          onlineBrowseStarted = true;
+          browseCurrentLevel();
+        }
+      }
+    };
+
+    overlay.querySelectorAll(".db-src-tab").forEach(tab =>
+      tab.addEventListener("click", () => switchSource(tab.dataset.src))
+    );
+
+    // ── Load button ───────────────────────────────────────────────────────────
+    loadButton.addEventListener("click", async () => {
+      loadButton.disabled = true;
+      loadButton.textContent = "Loading…";
+
+      if (activeSource === "local") {
+        const profile = profiles[Number(select.value)];
+        if (!profile) { loadButton.disabled = false; loadButton.textContent = "Load"; return; }
+        try {
+          const data = await this._hass.callWS({
+            type: "tasmota_ir_ready/load_ir_database",
+            source: profile.source,
+            path: profile.path,
+          });
+          overlay.remove();
+          this._applyProfile(data, "Profile loaded — review and Save to apply.");
+        } catch (e) {
+          overlay.remove();
+          this._showStatus("err", `Database load failed: ${e.message || e}`);
+        }
+      } else {
+        if (!selectedFilePath) { loadButton.disabled = false; loadButton.textContent = "Load"; return; }
+        try {
+          const data = await this._hass.callWS({
+            type: "tasmota_ir_ready/flipper_load",
+            path: selectedFilePath,
+            device_type: selectedFileDeviceType,
+          });
+          overlay.remove();
+          const note = `Flipper IRDB: ${data.converted} command(s) loaded` +
+            (data.skipped ? `, ${data.skipped} skipped (raw/unsupported protocol)` : "") +
+            ". Review and Save to apply.";
+          this._applyProfile(data, note);
+        } catch (e) {
+          overlay.remove();
+          this._showStatus("err", `Flipper load failed: ${e.message || e}`);
+        }
       }
     });
+
+    overlay.querySelector("#db-cancel").addEventListener("click", () => overlay.remove());
   }
 
   _applyProfile(profile, statusText) {
     const opts = profile.options || profile;
-    const skip = ["entry_id", "title"];
-    for (const [key, value] of Object.entries(opts)) {
-      if (!skip.includes(key)) this._editValues[key] = value;
+
+    // Preserve connection-specific fields (topics, sensors, name) — everything
+    // else gets wiped so stale IR codes from the previous profile don't linger.
+    const preserved = {};
+    for (const key of DB_SKIP_FIELDS) {
+      if (key in this._editValues) preserved[key] = this._editValues[key];
     }
+
+    // Reset to clean defaults + preserved connection fields, then overlay profile
+    this._editValues = { ...FIELD_DEFAULTS, ...preserved };
+    const skip = new Set(["entry_id", "title", ...DB_SKIP_FIELDS]);
+    for (const [key, value] of Object.entries(opts)) {
+      if (!skip.has(key)) this._editValues[key] = value;
+    }
+
+    this._sourceCount = Math.max(2, this._countFilledSources());
+    this._fanSpeedCount = Math.max(2, this._countFilledFanSpeeds());
+    this._humidifierModeCount = Math.max(2, this._countFilledHumidifierModes());
     this._render();
     this._showStatus("ok", statusText);
   }
@@ -1442,7 +1938,9 @@ class TasmotaIrhvacPanel extends HTMLElement {
           brand: overlay.querySelector("#db-brand").value.trim(),
           model: overlay.querySelector("#db-model").value.trim(),
           filename: profileFilename,
-          options: { ...this._editValues },
+          options: Object.fromEntries(
+            Object.entries(this._editValues).filter(([k]) => !DB_SKIP_FIELDS.has(k))
+          ),
         });
         overlay.remove();
         this._showStatus("ok", `Saved database profile: ${result.path}`);
@@ -1607,12 +2105,12 @@ class TasmotaIrhvacPanel extends HTMLElement {
   }
 
   _buildSidebar() {
-    const groups = { climate: [], media_player: [], remote: [] };
+    const groups = { climate: [], media_player: [], remote: [], fan: [], humidifier: [] };
     for (const entry of this._entries) {
       const dt = entry.options?.device_type || "climate";
       (groups[dt] || groups.climate).push(entry);
     }
-    const labels = { climate: "Climate", media_player: "Media Player", remote: "Remote" };
+    const labels = { climate: "Climate", media_player: "Media Player", remote: "Remote", fan: "Fan", humidifier: "Humidifier" };
     let html = '<div class="sidebar">';
     for (const [dt, entries] of Object.entries(groups)) {
       if (!entries.length) continue;
@@ -1622,6 +2120,11 @@ class TasmotaIrhvacPanel extends HTMLElement {
         const active = this._selected?.entry_id === entry.entry_id ? " active" : "";
         html += `<div class="sidebar-item${active}" data-entry-id="${entry.entry_id}">
           <span>${entry.title}</span>
+          <button class="sidebar-dup-btn" data-dup-entry-id="${entry.entry_id}" title="Duplicate" aria-label="Duplicate">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z"/>
+            </svg>
+          </button>
         </div>`;
       }
       html += `</div>`;
@@ -1663,14 +2166,213 @@ class TasmotaIrhvacPanel extends HTMLElement {
     return `
       <div class="entry-toolbar">
         <h2>${this._selected.title}</h2>
-        <button class="btn btn-secondary" id="btn-database">IR Database</button>
-        <button class="btn btn-secondary" id="btn-add-database">Add to database</button>
+        <button class="btn btn-secondary" id="btn-database">Load IR Database</button>
+        <button class="btn btn-secondary" id="btn-add-database">Save IR Database</button>
         <button class="btn btn-danger" id="btn-delete" title="Delete this device">🗑 Delete</button>
         <button class="btn btn-primary" id="btn-save">💾 Save</button>
       </div>
       <div class="tabs">${tabs}</div>
       <div class="fields-area">${legend}${fields}</div>
     `;
+  }
+
+  // -----------------------------------------------------------------------
+  // Media Player — mode-aware Sources section
+  // -----------------------------------------------------------------------
+
+  _buildMpSourcesSection() {
+    const mode = (this._editValues.media_source_mode || "direct");
+    const isCycle = mode === "cycle";
+    const count = this._sourceCount || 2;
+
+    // ── Mode tab switcher ─────────────────────────────────────────────────
+    const tabsHtml = `
+      <div class="src-mode-tabs">
+        <button class="src-mode-tab${!isCycle ? " active" : ""}" data-mp-mode="direct">Direct Sources</button>
+        <button class="src-mode-tab${isCycle ? " active" : ""}" data-mp-mode="cycle">Cycle Source</button>
+      </div>`;
+
+    let html = tabsHtml;
+
+    if (isCycle) {
+      // ── Cycle mode ──────────────────────────────────────────────────────
+      // Just the cycle button IR code and inter-press delay — no source list.
+      // Pressing the input button once per activation; HA won't show a source
+      // dropdown for this device since no named sources are configured.
+      const cycleData  = this._escHtml(this._editValues.media_source_cycle_data || "");
+      const hasData    = (this._editValues.media_source_cycle_data || "").trim().length > 0;
+      const cycleDelay = this._editValues.media_source_cycle_delay ?? 0.5;
+
+      html += `
+        <div class="field-row" data-field-key="media_source_cycle_data">
+          <span class="field-label">Cycle Button IR Code</span>
+          <input type="text" class="field-input ir-field" data-key="media_source_cycle_data"
+            value="${cycleData}" placeholder="0x…" autocomplete="off" spellcheck="false">
+          <button class="btn-icon btn-learn" data-learn="media_source_cycle_data" title="Learn from physical remote">📡 Learn</button>
+          <button class="btn-icon btn-test" data-test="media_source_cycle_data" title="Send this code now"${hasData ? "" : " disabled"}>▶ Test</button>
+        </div>
+        <div class="field-row" data-field-key="media_source_cycle_delay">
+          <span class="field-label">Cycle Delay (s)</span>
+          <input type="number" class="field-input" data-key="media_source_cycle_delay"
+            value="${cycleDelay}" min="0" max="10" step="0.05" style="max-width:90px">
+          <span class="field-unit">s</span>
+        </div>`;
+      // No source names, no add button — nothing else needed for cycle mode.
+      return html;
+    } else {
+      // ── Direct mode ─────────────────────────────────────────────────────
+      // Each source has its own IR code
+      for (let i = 1; i <= count; i++) {
+        const nameVal = this._escHtml(this._editValues[`media_source_${i}_name`] || "");
+        const dataVal = this._escHtml(this._editValues[`media_source_${i}_data`] || "");
+        const hasData = (this._editValues[`media_source_${i}_data`] || "").trim().length > 0;
+        html += `
+          <div class="field-row" data-field-key="media_source_${i}_name">
+            <span class="field-label">Source ${i} Name</span>
+            <input type="text" class="field-input" data-key="media_source_${i}_name"
+              value="${nameVal}" placeholder="e.g. HDMI ${i}" autocomplete="off">
+            <button class="btn-icon btn-learn" style="visibility:hidden" aria-hidden="true" tabindex="-1">📡 Learn</button>
+            <button class="btn-icon btn-test"  style="visibility:hidden" aria-hidden="true" tabindex="-1">▶ Test</button>
+            <button class="btn-icon btn-del-cmd" style="visibility:hidden" aria-hidden="true" tabindex="-1">✕</button>
+          </div>
+          <div class="field-row" data-field-key="media_source_${i}_data">
+            <span class="field-label">Source ${i} IR Code</span>
+            <input type="text" class="field-input ir-field" data-key="media_source_${i}_data"
+              value="${dataVal}" placeholder="0x…" autocomplete="off" spellcheck="false">
+            <button class="btn-icon btn-learn" data-learn="media_source_${i}_data" title="Learn from physical remote">📡 Learn</button>
+            <button class="btn-icon btn-test"  data-test="media_source_${i}_data" title="Send this code now"${hasData ? "" : " disabled"}>▶ Test</button>
+            <button class="btn-icon btn-del-cmd" data-del-source="${i}" title="Remove source">✕</button>
+          </div>`;
+      }
+    }
+
+    // Add Source button (shared by both modes, max 6)
+    html += count < 6
+      ? `<div class="field-row"><button class="btn btn-secondary" id="btn-add-source">+ Add Source</button></div>`
+      : "";
+
+    return html;
+  }
+
+  _buildDynamicSourcesSection() {
+    const count = this._sourceCount || 2;
+    let html = "";
+    for (let i = 1; i <= count; i++) {
+      const nameVal = this._escHtml(this._editValues[`media_source_${i}_name`] || "");
+      const dataVal = this._escHtml(this._editValues[`media_source_${i}_data`] || "");
+      const hasData = (this._editValues[`media_source_${i}_data`] || "").trim().length > 0;
+      html += `
+        <div class="field-row" data-field-key="media_source_${i}_name">
+          <span class="field-label">Source ${i} Name</span>
+          <input type="text" class="field-input" data-key="media_source_${i}_name"
+            value="${nameVal}" autocomplete="off">
+          <button class="btn-icon btn-learn" style="visibility:hidden" aria-hidden="true" tabindex="-1">📡 Learn</button>
+          <button class="btn-icon btn-test" style="visibility:hidden" aria-hidden="true" tabindex="-1">▶ Test</button>
+          <button class="btn-icon btn-del-cmd" style="visibility:hidden" aria-hidden="true" tabindex="-1">✕</button>
+        </div>
+        <div class="field-row" data-field-key="media_source_${i}_data">
+          <span class="field-label">Source ${i} IR Code</span>
+          <input type="text" class="field-input ir-field" data-key="media_source_${i}_data"
+            value="${dataVal}" placeholder="0x…" autocomplete="off" spellcheck="false">
+          <button class="btn-icon btn-learn" data-learn="media_source_${i}_data" title="Learn from physical remote">📡 Learn</button>
+          <button class="btn-icon btn-test" data-test="media_source_${i}_data" title="Send this code now"${hasData ? "" : " disabled"}>▶ Test</button>
+          <button class="btn-icon btn-del-cmd" data-del-source="${i}" title="Remove source">✕</button>
+        </div>`;
+    }
+    const addBtn = count < 6
+      ? `<div class="field-row"><button class="btn btn-secondary" id="btn-add-source">+ Add Source</button></div>`
+      : "";
+    return html + addBtn;
+  }
+
+  _buildFanSpeedsSection() {
+    const count = this._fanSpeedCount || 2;
+    let html = "";
+    for (let i = 1; i <= count; i++) {
+      const nameVal = this._escHtml(this._editValues[`fan_speed_${i}_name`] || "");
+      const dataVal = this._escHtml(this._editValues[`fan_speed_${i}_data`] || "");
+      const hasData = (this._editValues[`fan_speed_${i}_data`] || "").trim().length > 0;
+      html += `
+        <div class="field-row" data-field-key="fan_speed_${i}_name">
+          <span class="field-label">Speed ${i} Name</span>
+          <input type="text" class="field-input" data-key="fan_speed_${i}_name"
+            value="${nameVal}" placeholder="e.g. Low" autocomplete="off">
+          <button class="btn-icon btn-learn" style="visibility:hidden" aria-hidden="true" tabindex="-1">📡 Learn</button>
+          <button class="btn-icon btn-test"  style="visibility:hidden" aria-hidden="true" tabindex="-1">▶ Test</button>
+          <button class="btn-icon btn-del-cmd" style="visibility:hidden" aria-hidden="true" tabindex="-1">✕</button>
+        </div>
+        <div class="field-row" data-field-key="fan_speed_${i}_data">
+          <span class="field-label">Speed ${i} IR Code</span>
+          <input type="text" class="field-input ir-field" data-key="fan_speed_${i}_data"
+            value="${dataVal}" placeholder="0x…" autocomplete="off" spellcheck="false">
+          <button class="btn-icon btn-learn" data-learn="fan_speed_${i}_data" title="Learn from physical remote">📡 Learn</button>
+          <button class="btn-icon btn-test"  data-test="fan_speed_${i}_data" title="Send this code now"${hasData ? "" : " disabled"}>▶ Test</button>
+          <button class="btn-icon btn-del-cmd" data-del-fan-speed="${i}" title="Remove speed">✕</button>
+        </div>`;
+    }
+    html += count < 6
+      ? `<div class="field-row"><button class="btn btn-secondary" id="btn-add-fan-speed">+ Add Speed</button></div>`
+      : "";
+    return html;
+  }
+
+  _buildHumidifierModesSection() {
+    const count = this._humidifierModeCount || 2;
+    let html = "";
+    for (let i = 1; i <= count; i++) {
+      const nameVal = this._escHtml(this._editValues[`humidifier_mode_${i}_name`] || "");
+      const dataVal = this._escHtml(this._editValues[`humidifier_mode_${i}_data`] || "");
+      const hasData = (this._editValues[`humidifier_mode_${i}_data`] || "").trim().length > 0;
+      html += `
+        <div class="field-row" data-field-key="humidifier_mode_${i}_name">
+          <span class="field-label">Mode ${i} Name</span>
+          <input type="text" class="field-input" data-key="humidifier_mode_${i}_name"
+            value="${nameVal}" placeholder="e.g. Low" autocomplete="off">
+          <button class="btn-icon btn-learn" style="visibility:hidden" aria-hidden="true" tabindex="-1">📡 Learn</button>
+          <button class="btn-icon btn-test"  style="visibility:hidden" aria-hidden="true" tabindex="-1">▶ Test</button>
+          <button class="btn-icon btn-del-cmd" style="visibility:hidden" aria-hidden="true" tabindex="-1">✕</button>
+        </div>
+        <div class="field-row" data-field-key="humidifier_mode_${i}_data">
+          <span class="field-label">Mode ${i} IR Code</span>
+          <input type="text" class="field-input ir-field" data-key="humidifier_mode_${i}_data"
+            value="${dataVal}" placeholder="0x…" autocomplete="off" spellcheck="false">
+          <button class="btn-icon btn-learn" data-learn="humidifier_mode_${i}_data" title="Learn from physical remote">📡 Learn</button>
+          <button class="btn-icon btn-test"  data-test="humidifier_mode_${i}_data" title="Send this code now"${hasData ? "" : " disabled"}>▶ Test</button>
+          <button class="btn-icon btn-del-cmd" data-del-humidifier-mode="${i}" title="Remove mode">✕</button>
+        </div>`;
+    }
+    html += count < 6
+      ? `<div class="field-row"><button class="btn btn-secondary" id="btn-add-humidifier-mode">+ Add Mode</button></div>`
+      : "";
+    return html;
+  }
+
+  _buildCustomCommandsSection() {
+    const cmds = Array.isArray(this._editValues.remote_extra_commands)
+      ? this._editValues.remote_extra_commands
+      : [];
+    const rowsHtml = cmds.map((cmd, idx) => `
+      <div class="custom-cmd-row" data-custom-idx="${idx}">
+        <input type="text" class="field-input custom-cmd-name"
+          data-custom-name="${idx}"
+          value="${this._escHtml(cmd.name || "")}"
+          placeholder="e.g. Favorite" autocomplete="off">
+        <input type="text" class="field-input ir-field custom-cmd-data"
+          data-custom-data="${idx}"
+          value="${this._escHtml(cmd.data || "")}"
+          placeholder="0x…" autocomplete="off" spellcheck="false">
+        <button class="btn-icon btn-learn" data-learn-custom="${idx}" title="Learn from physical remote">📡 Learn</button>
+        <button class="btn-icon btn-test" data-test-custom="${idx}" title="Send this code now"${(cmd.data || "").trim() ? "" : " disabled"}>▶ Test</button>
+        <button class="btn-icon btn-del-cmd" data-del-custom="${idx}" title="Remove command">✕</button>
+      </div>`).join("");
+    const emptyHint = cmds.length === 0
+      ? `<p class="custom-cmds-empty">No custom commands yet. Click "+ Add Command" to define one.</p>` : "";
+    return `
+      <div class="custom-commands-wrap">
+        ${emptyHint}
+        <div class="custom-cmds-list">${rowsHtml}</div>
+        <button class="btn btn-secondary btn-add-custom-cmd" id="btn-add-custom-cmd">+ Add Command</button>
+      </div>`;
   }
 
   _buildField(field) {
@@ -1680,6 +2382,21 @@ class TasmotaIrhvacPanel extends HTMLElement {
     }
     if (field.type === "divider") {
       return `<hr class="field-divider">`;
+    }
+    if (field.type === "custom-commands") {
+      return this._buildCustomCommandsSection();
+    }
+    if (field.type === "mp-sources") {
+      return this._buildMpSourcesSection();
+    }
+    if (field.type === "dynamic-sources") {
+      return this._buildDynamicSourcesSection();
+    }
+    if (field.type === "fan-speeds") {
+      return this._buildFanSpeedsSection();
+    }
+    if (field.type === "humidifier-modes") {
+      return this._buildHumidifierModesSection();
     }
 
     const value = this._getFieldValue(field.key);
@@ -1838,9 +2555,17 @@ class TasmotaIrhvacPanel extends HTMLElement {
       this._showStatus("ok", "Refreshed.");
     });
 
-    // Sidebar entry selection
+    // Sidebar entry selection + duplicate icon
     root.querySelectorAll(".sidebar-item[data-entry-id]").forEach(el => {
-      el.addEventListener("click", () => {
+      el.addEventListener("click", e => {
+        // If the duplicate button was clicked, open the dialog for that entry
+        const dupBtn = e.target.closest(".sidebar-dup-btn");
+        if (dupBtn) {
+          e.stopPropagation();
+          const entry = this._entries.find(e => e.entry_id === dupBtn.dataset.dupEntryId);
+          if (entry) this._openDuplicateDialog(entry);
+          return;
+        }
         const entry = this._entries.find(e => e.entry_id === el.dataset.entryId);
         if (entry) this._selectEntry(entry);
       });
@@ -2011,6 +2736,142 @@ class TasmotaIrhvacPanel extends HTMLElement {
         this._testIr(e.currentTarget.dataset.test);
       });
     });
+
+    // Dynamic sources — Add Source
+    // Media Player source-mode tab switcher (Direct / Cycle)
+    root.querySelectorAll("[data-mp-mode]").forEach(tab => {
+      tab.addEventListener("click", () => {
+        this._snapshotFields();
+        this._editValues.media_source_mode = tab.dataset.mpMode;
+        this._render();
+      });
+    });
+
+    root.getElementById("btn-add-source")?.addEventListener("click", () => {
+      this._snapshotFields();
+      this._sourceCount = Math.min(6, (this._sourceCount || 2) + 1);
+      this._render();
+    });
+
+    // Dynamic sources — Delete source (shift remaining down, decrement count)
+    root.querySelectorAll("[data-del-source]").forEach(btn => {
+      btn.addEventListener("click", e => {
+        this._snapshotFields();
+        const idx = parseInt(e.currentTarget.dataset.delSource, 10);
+        const total = this._sourceCount || 2;
+        for (let i = idx; i < total; i++) {
+          this._editValues[`media_source_${i}_name`] = this._editValues[`media_source_${i + 1}_name`] || "";
+          this._editValues[`media_source_${i}_data`] = this._editValues[`media_source_${i + 1}_data`] || "";
+        }
+        this._editValues[`media_source_${total}_name`] = "";
+        this._editValues[`media_source_${total}_data`] = "";
+        this._sourceCount = Math.max(2, total - 1);
+        this._render();
+      });
+    });
+
+    // Fan speeds — Add
+    root.getElementById("btn-add-fan-speed")?.addEventListener("click", () => {
+      this._snapshotFields();
+      this._fanSpeedCount = Math.min(6, (this._fanSpeedCount || 2) + 1);
+      this._render();
+    });
+
+    // Fan speeds — Delete
+    root.querySelectorAll("[data-del-fan-speed]").forEach(btn => {
+      btn.addEventListener("click", e => {
+        this._snapshotFields();
+        const idx = parseInt(e.currentTarget.dataset.delFanSpeed, 10);
+        const total = this._fanSpeedCount || 2;
+        for (let i = idx; i < total; i++) {
+          this._editValues[`fan_speed_${i}_name`] = this._editValues[`fan_speed_${i + 1}_name`] || "";
+          this._editValues[`fan_speed_${i}_data`] = this._editValues[`fan_speed_${i + 1}_data`] || "";
+        }
+        this._editValues[`fan_speed_${total}_name`] = "";
+        this._editValues[`fan_speed_${total}_data`] = "";
+        this._fanSpeedCount = Math.max(2, total - 1);
+        this._render();
+      });
+    });
+
+    // Humidifier modes — Add
+    root.getElementById("btn-add-humidifier-mode")?.addEventListener("click", () => {
+      this._snapshotFields();
+      this._humidifierModeCount = Math.min(6, (this._humidifierModeCount || 2) + 1);
+      this._render();
+    });
+
+    // Humidifier modes — Delete
+    root.querySelectorAll("[data-del-humidifier-mode]").forEach(btn => {
+      btn.addEventListener("click", e => {
+        this._snapshotFields();
+        const idx = parseInt(e.currentTarget.dataset.delHumidifierMode, 10);
+        const total = this._humidifierModeCount || 2;
+        for (let i = idx; i < total; i++) {
+          this._editValues[`humidifier_mode_${i}_name`] = this._editValues[`humidifier_mode_${i + 1}_name`] || "";
+          this._editValues[`humidifier_mode_${i}_data`] = this._editValues[`humidifier_mode_${i + 1}_data`] || "";
+        }
+        this._editValues[`humidifier_mode_${total}_name`] = "";
+        this._editValues[`humidifier_mode_${total}_data`] = "";
+        this._humidifierModeCount = Math.max(2, total - 1);
+        this._render();
+      });
+    });
+
+    // Custom commands — Add
+    root.getElementById("btn-add-custom-cmd")?.addEventListener("click", () => {
+      this._snapshotCustomCommands();
+      const cmds = Array.isArray(this._editValues.remote_extra_commands)
+        ? this._editValues.remote_extra_commands : [];
+      this._editValues.remote_extra_commands = [...cmds, { name: "", data: "" }];
+      this._render();
+      const rows = this._shadow.querySelectorAll(".custom-cmd-row");
+      rows[rows.length - 1]?.querySelector(".custom-cmd-name")?.focus();
+    });
+
+    // Custom commands — Delete
+    root.querySelectorAll("[data-del-custom]").forEach(btn => {
+      btn.addEventListener("click", e => {
+        this._snapshotCustomCommands();
+        const idx = parseInt(e.currentTarget.dataset.delCustom, 10);
+        const cmds = Array.isArray(this._editValues.remote_extra_commands)
+          ? [...this._editValues.remote_extra_commands] : [];
+        cmds.splice(idx, 1);
+        this._editValues.remote_extra_commands = cmds;
+        this._render();
+      });
+    });
+
+    // Custom commands — Learn
+    root.querySelectorAll("[data-learn-custom]").forEach(btn => {
+      btn.addEventListener("click", e => {
+        this._snapshotFields();
+        const idx = parseInt(e.currentTarget.dataset.learnCustom, 10);
+        const row = this._shadow.querySelector(`.custom-cmd-row[data-custom-idx="${idx}"]`);
+        const dataInput = row?.querySelector(".custom-cmd-data");
+        if (dataInput) this._learnIrToInput(dataInput, idx);
+      });
+    });
+
+    // Custom commands — Test
+    root.querySelectorAll("[data-test-custom]").forEach(btn => {
+      btn.addEventListener("click", e => {
+        this._snapshotFields();
+        const idx = parseInt(e.currentTarget.dataset.testCustom, 10);
+        const row = this._shadow.querySelector(`.custom-cmd-row[data-custom-idx="${idx}"]`);
+        const dataInput = row?.querySelector(".custom-cmd-data");
+        if (dataInput) this._testIrFromValue(dataInput.value);
+      });
+    });
+
+    // Custom commands — live enable/disable of Test button
+    root.querySelectorAll(".custom-cmd-data").forEach(input => {
+      input.addEventListener("input", () => {
+        const row = input.closest(".custom-cmd-row");
+        const testBtn = row?.querySelector("[data-test-custom]");
+        if (testBtn) testBtn.disabled = !input.value.trim();
+      });
+    });
   }
 
   /** Read all currently rendered field inputs into _editValues. */
@@ -2018,7 +2879,77 @@ class TasmotaIrhvacPanel extends HTMLElement {
     this._shadow.querySelectorAll("[data-key]").forEach(el => {
       this._editValues[el.dataset.key] = el.value;
     });
+    this._snapshotCustomCommands();
+  }
+
+  /** Collect custom command rows from the DOM into _editValues. */
+  _snapshotCustomCommands() {
+    const rows = this._shadow.querySelectorAll(".custom-cmd-row[data-custom-idx]");
+    if (!rows.length && !this._shadow.querySelector(".custom-commands-wrap")) return;
+    const cmds = [];
+    rows.forEach(row => {
+      const name = (row.querySelector("[data-custom-name]")?.value || "").trim();
+      const data = (row.querySelector("[data-custom-data]")?.value || "").trim();
+      cmds.push({ name, data }); // keep incomplete rows so user doesn't lose work
+    });
+    this._editValues.remote_extra_commands = cmds;
+  }
+
+  /** IR Learn targeting a specific DOM input (used for custom command rows). */
+  async _learnIrToInput(inputEl, idx) {
+    const topic = (this._getFieldValue("learn_topic") || "").trim();
+    if (!topic) {
+      this._showStatus("err", 'Set "IR Learn Topic" in the Connection tab first.');
+      return;
+    }
+    this._showLearnOverlay(`Custom Command ${idx + 1}`);
+    try {
+      const result = await this._hass.callWS({
+        type: "tasmota_ir_ready/learn_ir",
+        topic,
+      });
+      this._hideLearnOverlay();
+      if (result.timeout) {
+        this._showStatus("err", "No IR signal received (30 s timeout).");
+      } else if (result.data) {
+        inputEl.value = result.data;
+        this._snapshotCustomCommands();
+        const testBtn = inputEl.closest(".custom-cmd-row")?.querySelector("[data-test-custom]");
+        if (testBtn) testBtn.disabled = false;
+        this._showStatus("ok", `Learned: ${result.data}`);
+      } else {
+        this._showStatus("err", `Learn error: ${result.error || "unknown"}`);
+      }
+    } catch (e) {
+      this._hideLearnOverlay();
+      this._showStatus("err", `Learn failed: ${e.message || e}`);
+    }
+  }
+
+  /** IR Test with a value passed directly (used for custom command rows). */
+  async _testIrFromValue(data) {
+    data = (data || "").trim();
+    if (!data) {
+      this._showStatus("err", "No IR code to test. Enter a hex value first.");
+      return;
+    }
+    const topic = (this._getFieldValue("command_topic") || "").trim();
+    if (!topic) {
+      this._showStatus("err", 'Set "MQTT Command Topic" in Connection tab first.');
+      return;
+    }
+    const protocol = (this._getFieldValue("media_protocol") || "NEC").toUpperCase();
+    const bits = parseInt(this._getFieldValue("media_bits") || "32", 10);
+    try {
+      await this._hass.callWS({
+        type: "tasmota_ir_ready/send_ir",
+        topic, protocol, bits, data,
+      });
+      this._showStatus("ok", `Sent ${data} (${protocol}/${bits})`);
+    } catch (e) {
+      this._showStatus("err", `Send failed: ${e.message || e}`);
+    }
   }
 }
 
-customElements.define("tasmota-irhvac-panel", TasmotaIrhvacPanel);
+customElements.define("tasmota-ir-ready-panel", TasmotaIrhvacPanel);
