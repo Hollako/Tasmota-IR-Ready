@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
+          ref: master
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
@@ -45,7 +45,7 @@ jobs:
             echo "changed=false" >> $GITHUB_OUTPUT
           else
             git commit -m "chore: bump manifest to ${{ steps.ver.outputs.version }}"
-            git push origin main
+            git push origin master
             echo "changed=true" >> $GITHUB_OUTPUT
           fi
 
