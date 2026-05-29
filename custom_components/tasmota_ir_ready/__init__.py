@@ -3,7 +3,6 @@ import json
 from pathlib import Path
 
 from homeassistant.components import panel_custom
-from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
