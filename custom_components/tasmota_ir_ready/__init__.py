@@ -103,23 +103,10 @@ async def _async_setup_frontend(hass: HomeAssistant) -> None:
     except ValueError:
         pass  # Already registered — harmless, keep going.
 
-    # Register the Lovelace remote card so it is available on all dashboards
-    # without requiring a manual resource entry.
-    #
-    # Two registration methods are used together for maximum reliability:
-    #
-    # 1. add_extra_js_url — injects the URL into the in-memory extra-module list.
-    #    Fast, but in-memory only; lost on HA restart if setup doesn't re-run.
-    #
-    # 2. _async_ensure_lovelace_resource — writes the URL into the persistent
-    #    Lovelace resource storage (.storage/lovelace_resources).  Survives
-    #    restarts, works for all dashboard types, and is the only method that
-    #    reliably fixes "Custom element doesn't exist" in all HA configurations.
-    #
-    # The ?v= query parameter forces a fresh browser fetch whenever the
-    # integration version changes, preventing stale-cache errors.
+    # Persist the card URL in Lovelace resource storage so it loads on every
+    # dashboard without any manual resource entry.  The ?v= parameter changes
+    # with every release so the browser always fetches the latest file.
     card_url = f"/{DOMAIN}_panel/remote_card.js?v={_VERSION}"
-    add_extra_js_url(hass, card_url)
     await _async_ensure_lovelace_resource(hass, card_url)
 
     try:
