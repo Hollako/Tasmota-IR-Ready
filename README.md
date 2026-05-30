@@ -362,7 +362,7 @@ The D-pad in the VDC zone can be switched to a **touch pad** per remote using th
 | Style | Description |
 |-------|-------------|
 | `dpad` | Four directional buttons + OK button (default) |
-| `touchpad` | Single swipe surface — tap anywhere for OK, swipe in any direction to send up/down/left/right |
+| `touchpad` | Single swipe surface - tap anywhere for OK, swipe in any direction to send up/down/left/right |
 
 The touch pad flashes the theme's accent colour on each interaction and shows faint directional hints at its edges. Change the style from the **Visual editor** or add `dpad_style: touchpad` directly in YAML.
 
