@@ -395,4 +395,5 @@ All options are configurable through the Lovelace card editor - click the pencil
 
 Inspired by: 
 1- [Tasmota-IRHVAC](https://github.com/hristo-atanasov/Tasmota-IRHVAC) by hristo-atanasov.
+
 2- [SmartIR](https://github.com/smartHomeHub/SmartIR) by smartHomeHub.
