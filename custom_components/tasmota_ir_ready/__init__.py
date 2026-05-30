@@ -127,7 +127,7 @@ async def _async_setup_frontend(hass: HomeAssistant) -> None:
     async_register_websocket_commands(hass)
 
 
-CONFIG_SCHEMA = cv.config_entry_only_schema({})
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
