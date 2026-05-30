@@ -26,16 +26,6 @@ Tasmota configuration looks like this:
   <img src="https://raw.githubusercontent.com/Hollako/Tasmota-IR-Ready/master/images/tasmota_config.jpeg" alt="Tasmota configuration" width="360">
 </p>
 
-After configuring Tasmota, open the Tasmota console, point your AC remote at the IR receiver, and press a button.
-
-If everything is configured correctly, you should see a line like this:
-
-```javascript
-{'IrReceived': {'Protocol': 'FUJITSU_AC', 'Bits': 128, 'Data': '0x0x1463001010FE09304013003008002025', 'Repeat': 0, 'IRHVAC': {'Vendor': 'FUJITSU_AC', 'Model': 1, 'Power': 'On', 'Mode': 'fan_only', 'Celsius': 'On', 'Temp': 20, 'FanSpeed': 'Auto', 'SwingV': 'Off', 'SwingH': 'Off', 'Quiet': 'Off', 'Turbo': 'Off', 'Econo': 'Off', 'Light': 'Off', 'Filter': 'Off', 'Clean': 'Off', 'Beep': 'Off', 'Sleep': -1}}}
-```
-
-If `Vendor` is not `Unknown` and you see the `IRHVAC` key, the integration can control your AC.
-
 ## Installation
 
 ### HACS
@@ -115,6 +105,16 @@ The panel can browse and import profiles directly from the [Flipper Zero IRDB](h
 ## Climate (Air Conditioner)
 
 Controls air conditioners using Tasmota's `IRHVAC` command. Supports full bidirectional state sync - when you use the original AC remote, Tasmota's IR receiver reports the change back to Home Assistant.
+
+### Verifying AC compatibility
+
+Open the Tasmota console, point your AC remote at the IR receiver, and press a button. If everything is configured correctly, you should see a line like this:
+
+```javascript
+{'IrReceived': {'Protocol': 'FUJITSU_AC', 'Bits': 128, 'Data': '0x0x1463001010FE09304013003008002025', 'Repeat': 0, 'IRHVAC': {'Vendor': 'FUJITSU_AC', 'Model': 1, 'Power': 'On', 'Mode': 'fan_only', 'Celsius': 'On', 'Temp': 20, 'FanSpeed': 'Auto', 'SwingV': 'Off', 'SwingH': 'Off', 'Quiet': 'Off', 'Turbo': 'Off', 'Econo': 'Off', 'Light': 'Off', 'Filter': 'Off', 'Clean': 'Off', 'Beep': 'Off', 'Sleep': -1}}}
+```
+
+If `Vendor` is not `Unknown` and you see the `IRHVAC` key, the integration can control your AC.
 
 ### Connection & Sensors
 
