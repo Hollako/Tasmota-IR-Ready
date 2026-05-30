@@ -388,3 +388,9 @@ The card is divided into sections that appear only when the corresponding comman
 ### Visual editor
 
 All options are configurable through the Lovelace card editor - click the pencil icon on the card to open it. The editor supports adding and removing remotes, switching between them to edit each one independently, and configuring the entity, tab icon, title, hidden groups, and extra buttons per remote.
+
+---
+
+## Credits
+
+Inspired by [Tasmota-IRHVAC](https://github.com/hristo-atanasov/Tasmota-IRHVAC) by hristo-atanasov.
