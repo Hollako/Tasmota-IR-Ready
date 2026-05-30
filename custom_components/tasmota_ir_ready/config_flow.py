@@ -1158,6 +1158,9 @@ class TasmotaIrhvacOptionsFlow(OptionsFlow):
             user_input[CONF_LEARN_TOPIC] = (
                 user_input.get(CONF_LEARN_TOPIC) or ""
             ).strip()
+            user_input[CONF_POWER_SENSOR] = (
+                user_input.get(CONF_POWER_SENSOR) or ""
+            ).strip()
             for key in (*MEDIA_COMMAND_DATA_FIELDS, *MEDIA_SOURCE_NAME_FIELDS):
                 user_input[key] = (user_input.get(key) or "").strip()
             if CONF_MEDIA_PROTOCOL in user_input:
@@ -1202,6 +1205,10 @@ class TasmotaIrhvacOptionsFlow(OptionsFlow):
                                 CONF_LEARN_TOPIC,
                                 description={"suggested_value": current.get(CONF_LEARN_TOPIC, "")},
                             ): TextSelector(),
+                            vol.Optional(
+                                CONF_POWER_SENSOR,
+                                description={"suggested_value": current.get(CONF_POWER_SENSOR, "")},
+                            ): EntitySelector(EntitySelectorConfig(domain=["binary_sensor", "sensor", "switch"])),
                             vol.Required(
                                 CONF_MEDIA_PROTOCOL,
                                 default=current.get(
@@ -1330,6 +1337,9 @@ class TasmotaIrhvacOptionsFlow(OptionsFlow):
             user_input[CONF_LEARN_TOPIC] = (
                 user_input.get(CONF_LEARN_TOPIC) or ""
             ).strip()
+            user_input[CONF_POWER_SENSOR] = (
+                user_input.get(CONF_POWER_SENSOR) or ""
+            ).strip()
             for key in (*REMOTE_COMMAND_DATA_FIELDS, *MEDIA_COMMAND_DATA_FIELDS):
                 user_input[key] = (user_input.get(key) or "").strip()
             for key in MEDIA_SOURCE_NAME_FIELDS:
@@ -1376,6 +1386,10 @@ class TasmotaIrhvacOptionsFlow(OptionsFlow):
                                 CONF_LEARN_TOPIC,
                                 description={"suggested_value": current.get(CONF_LEARN_TOPIC, "")},
                             ): TextSelector(),
+                            vol.Optional(
+                                CONF_POWER_SENSOR,
+                                description={"suggested_value": current.get(CONF_POWER_SENSOR, "")},
+                            ): EntitySelector(EntitySelectorConfig(domain=["binary_sensor", "sensor", "switch"])),
                             vol.Required(
                                 CONF_MEDIA_PROTOCOL,
                                 default=current.get(

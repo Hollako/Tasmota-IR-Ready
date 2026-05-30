@@ -13,15 +13,17 @@ from homeassistant.components.media_player.const import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_NAME, CONF_UNIQUE_ID, STATE_OFF, STATE_ON
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.restore_state import RestoreEntity
 
 from .const import (
     CONF_AVAILABILITY_TOPIC,
     CONF_COMMAND_TOPIC,
     CONF_MEDIA_BITS,
+    CONF_POWER_SENSOR,
     CONF_MEDIA_CHANNEL_DOWN_DATA,
     CONF_MEDIA_CHANNEL_UP_DATA,
     CONF_MEDIA_FAST_FORWARD_DATA,
@@ -167,6 +169,7 @@ class TasmotaIrMediaPlayer(RestoreEntity, MediaPlayerEntity):
         self._attr_state = self._default_state()
         self._available = True
         self._unsubscribes = []
+        self._power_sensor: str | None = (config.get(CONF_POWER_SENSOR) or "").strip() or None
 
         self._availability_topic = config.get(CONF_AVAILABILITY_TOPIC)
         if not self._availability_topic:
@@ -337,6 +340,34 @@ class TasmotaIrMediaPlayer(RestoreEntity, MediaPlayerEntity):
                     available_message_received,
                 )
             )
+
+        if self._power_sensor:
+            self._unsubscribes.append(
+                async_track_state_change_event(
+                    self.hass,
+                    [self._power_sensor],
+                    self._async_power_sensor_changed,
+                )
+            )
+            # Seed with the current sensor value if already available.
+            sensor_state = self.hass.states.get(self._power_sensor)
+            if sensor_state and sensor_state.state not in ("unknown", "unavailable"):
+                self._attr_state = (
+                    MediaPlayerState.ON if sensor_state.state == STATE_ON
+                    else MediaPlayerState.OFF
+                )
+
+    @callback
+    def _async_power_sensor_changed(self, event) -> None:
+        """Update on/off state when the external power sensor reports a change."""
+        new_state = event.data.get("new_state")
+        if new_state is None or new_state.state in ("unknown", "unavailable"):
+            return
+        self._attr_state = (
+            MediaPlayerState.ON if new_state.state == STATE_ON
+            else MediaPlayerState.OFF
+        )
+        self.async_write_ha_state()
 
     async def async_will_remove_from_hass(self) -> None:
         """Unsubscribe when removed."""

@@ -38,9 +38,9 @@ const GROUP_DEFS = [
     label: "Power",
     layout: "power",
     buttons: [
-      { cmd: "power",     label: "⏻ POWER" },
-      { cmd: "power_on",  label: "⏻ ON"    },
-      { cmd: "power_off", label: "⏻ OFF"   },
+      { cmd: "power",     label: "POWER" },
+      { cmd: "power_on",  label: "ON"    },
+      { cmd: "power_off", label: "OFF"   },
     ],
   },
   {
@@ -48,9 +48,9 @@ const GROUP_DEFS = [
     label: "Volume",
     layout: "row",
     buttons: [
-      { cmd: "volume_up",   icon: "🔊", label: "VOL +" },
-      { cmd: "mute",        icon: "🔇", label: "MUTE", cls: "btn-mute" },
-      { cmd: "volume_down", icon: "🔉", label: "VOL −" },
+      { cmd: "volume_up",   icon: "mdi:volume-high",   label: "VOL +" },
+      { cmd: "mute",        icon: "mdi:volume-mute",   label: "MUTE",  cls: "btn-mute" },
+      { cmd: "volume_down", icon: "mdi:volume-medium", label: "VOL −" },
     ],
   },
   {
@@ -58,8 +58,8 @@ const GROUP_DEFS = [
     label: "Channels",
     layout: "row",
     buttons: [
-      { cmd: "channel_up",   icon: "▲", label: "CH ▲" },
-      { cmd: "channel_down", icon: "▼", label: "CH ▼" },
+      { cmd: "channel_up",   label: "Ch+" },
+      { cmd: "channel_down", label: "Ch−" },
     ],
   },
   {
@@ -67,12 +67,12 @@ const GROUP_DEFS = [
     label: "Navigation Aux",
     layout: "row",
     buttons: [
-      { cmd: "home",     icon: "⌂", label: "Home"  },
-      { cmd: "menu",     icon: "☰", label: "Menu"  },
-      { cmd: "back",     icon: "↩", label: "Back"  },
-      { cmd: "exit",     icon: "✕", label: "Exit"  },
-      { cmd: "info",     icon: "ℹ", label: "Info"  },
-      { cmd: "settings", icon: "⚙", label: "Setup" },
+      { cmd: "home",     icon: "mdi:home",                label: "Home"  },
+      { cmd: "menu",     icon: "mdi:menu",                label: "Menu"  },
+      { cmd: "back",     icon: "mdi:keyboard-backspace",  label: "Back"  },
+      { cmd: "exit",     icon: "mdi:close",               label: "Exit"  },
+      { cmd: "info",     icon: "mdi:information-outline", label: "Info"  },
+      { cmd: "settings", icon: "mdi:cog",                 label: "Setup" },
     ],
   },
   {
@@ -80,11 +80,11 @@ const GROUP_DEFS = [
     label: "D-Pad",
     layout: "dpad",
     buttons: [
-      { cmd: "up",    icon: "▲", pos: "top"    },
-      { cmd: "left",  icon: "◀", pos: "left"   },
-      { cmd: "ok",    label: "OK", pos: "center" },
-      { cmd: "right", icon: "▶", pos: "right"  },
-      { cmd: "down",  icon: "▼", pos: "bottom" },
+      { cmd: "up",    icon: "mdi:chevron-up",    pos: "top"    },
+      { cmd: "left",  icon: "mdi:chevron-left",  pos: "left"   },
+      { cmd: "ok",    label: "OK",               pos: "center" },
+      { cmd: "right", icon: "mdi:chevron-right", pos: "right"  },
+      { cmd: "down",  icon: "mdi:chevron-down",  pos: "bottom" },
     ],
   },
   {
@@ -149,6 +149,7 @@ function _normaliseConfig(config) {
       card_icon:     r.card_icon     || "",
       hidden_groups: r.hidden_groups || [],
       extra_buttons: r.extra_buttons || [],
+      dpad_style:    r.dpad_style    || "dpad",
     }));
   }
   // Legacy single-remote format
@@ -158,7 +159,17 @@ function _normaliseConfig(config) {
     card_icon:     config.card_icon     || "",
     hidden_groups: config.hidden_groups || [],
     extra_buttons: config.extra_buttons || [],
+    dpad_style:    config.dpad_style    || "dpad",
   }];
+}
+
+/** Render a button icon. MDI names (mdi:*) become <ha-icon> SVGs; anything
+ *  else (emoji, text) is wrapped in a plain span. Using ha-icon guarantees
+ *  identical rendering on iOS, Android, and desktop. */
+function iconHtml(icon) {
+  if (!icon) return "";
+  if (icon.startsWith("mdi:")) return `<ha-icon icon="${icon}"></ha-icon>`;
+  return `<span class="b-icon">${icon}</span>`;
 }
 
 // ── Visual card editor ────────────────────────────────────────────────────────
@@ -393,6 +404,18 @@ class TasmotaIrRemoteCardEditor extends HTMLElement {
       </label>`).join("")}
   </div>
 
+  <div class="ed-section">
+    <label class="ed-lbl">Navigation Style</label>
+    <label class="ed-check-row">
+      <input type="radio" name="dpad-style" value="dpad"     ${cur.dpad_style !== "touchpad" ? "checked" : ""}>
+      <span>D-Pad <small style="color:var(--secondary-text-color)">(directional buttons)</small></span>
+    </label>
+    <label class="ed-check-row">
+      <input type="radio" name="dpad-style" value="touchpad" ${cur.dpad_style === "touchpad"  ? "checked" : ""}>
+      <span>Touch Pad <small style="color:var(--secondary-text-color)">(swipe gestures)</small></span>
+    </label>
+  </div>
+
   <hr class="ed-divider">
 
   <div class="ed-section">
@@ -462,6 +485,13 @@ class TasmotaIrRemoteCardEditor extends HTMLElement {
       cb.addEventListener("change", () => {
         const hidden = [...this.querySelectorAll("[data-grp]:checked")].map(el => el.dataset.grp);
         this._updateCur({ hidden_groups: hidden });
+      });
+    });
+
+    // ── Navigation style ───────────────────────────────────────────────────
+    this.querySelectorAll("[name=dpad-style]").forEach(radio => {
+      radio.addEventListener("change", e => {
+        if (e.target.checked) this._updateCur({ dpad_style: e.target.value });
       });
     });
 
@@ -600,16 +630,19 @@ class TasmotaIrRemoteCard extends HTMLElement {
     // Build a cache key covering all remotes' state + active tab + config
     const stateKey = this._remotes.map(r => {
       const st = hass.states[r.entity];
+      const pwrSensor = st?.attributes.power_sensor;
+      const pwrState  = pwrSensor ? hass.states[pwrSensor]?.state : null;
       return [
         st?.state,
         JSON.stringify(st?.attributes.configured_commands),
         JSON.stringify(st?.attributes.source_list),
         st?.attributes.source_index,
+        pwrState,
       ].join("|");
     }).join("§");
 
     const cfgKey = this._remotes.map(r =>
-      JSON.stringify({ h: r.hidden_groups, e: r.extra_buttons })
+      JSON.stringify({ h: r.hidden_groups, e: r.extra_buttons, d: r.dpad_style })
     ).join("§");
 
     const key = `${stateKey}§§${cfgKey}§§${this._activeTab}`;
@@ -699,6 +732,7 @@ class TasmotaIrRemoteCard extends HTMLElement {
     }
 
     this._wireButtons();
+    this._wireTouchpad();
   }
 
   // ── Tab bar ───────────────────────────────────────────────────────────────
@@ -736,6 +770,15 @@ class TasmotaIrRemoteCard extends HTMLElement {
     const hidden     = new Set(remoteConfig.hidden_groups    || []);
     const extraBtns  = remoteConfig.extra_buttons            || [];
 
+    // Power sensor: null = no sensor (button stays default red)
+    //               true = device on (button turns green)
+    //               false = device off (button stays red)
+    const pwrSensorId = entity.attributes.power_sensor;
+    const powerOn = pwrSensorId
+      ? this._hass?.states[pwrSensorId]?.state === "on"
+      : null;
+
+    const dpadStyle  = remoteConfig.dpad_style || "dpad";
     const extraCmds  = new Set(extraBtns.map(b => b.command).filter(Boolean));
     const customCmds = cmds.filter(c => !KNOWN_CMDS.has(c) && !sourceList.includes(c) && !extraCmds.has(c));
 
@@ -746,12 +789,12 @@ class TasmotaIrRemoteCard extends HTMLElement {
       if (hidden.has(g.id)) continue;
       if (VDC_IDS.has(g.id)) continue;
       if (!vdcDone && g.id !== "power") {
-        body += this._renderVdcZone(cmds, hidden);
+        body += this._renderVdcZone(cmds, hidden, powerOn, dpadStyle);
         vdcDone = true;
       }
-      body += this._groupHtml(g, cmds);
+      body += this._groupHtml(g, cmds, powerOn);
     }
-    if (!vdcDone) body += this._renderVdcZone(cmds, hidden);
+    if (!vdcDone) body += this._renderVdcZone(cmds, hidden, powerOn, dpadStyle);
 
     if (sourceList.length) {
       body += this._sectionLabel("Sources");
@@ -799,32 +842,79 @@ class TasmotaIrRemoteCard extends HTMLElement {
     });
   }
 
+  _wireTouchpad() {
+    const pad = this.shadowRoot.querySelector("[data-touchpad]");
+    if (!pad) return;
+
+    const SWIPE_THRESHOLD = 30; // px — less than this is treated as a tap (ok)
+
+    let startX = 0, startY = 0;
+
+    pad.addEventListener("pointerdown", e => {
+      startX = e.clientX;
+      startY = e.clientY;
+      pad.setPointerCapture(e.pointerId);
+      pad.classList.add("tp-pressing");
+    });
+
+    pad.addEventListener("pointerup", e => {
+      pad.classList.remove("tp-pressing");
+
+      const dx   = e.clientX - startX;
+      const dy   = e.clientY - startY;
+      const dist = Math.hypot(dx, dy);
+
+      let cmd;
+      if (dist < SWIPE_THRESHOLD) {
+        cmd = "ok";
+      } else {
+        // Four-quadrant swipe: pick the dominant axis then sign
+        const angle = Math.atan2(dy, dx) * 180 / Math.PI; // −180 … 180
+        if (angle > -45 && angle <= 45)   cmd = "right";
+        else if (angle > 45 && angle <= 135) cmd = "down";
+        else if (angle < -45 && angle >= -135) cmd = "up";
+        else                               cmd = "left";
+      }
+
+      this._send(cmd);
+
+      // Brief ripple to confirm the gesture
+      pad.classList.add("tp-flash");
+      setTimeout(() => pad.classList.remove("tp-flash"), 220);
+    });
+
+    pad.addEventListener("pointercancel", () => {
+      pad.classList.remove("tp-pressing");
+    });
+  }
+
   // ── Group renderers ───────────────────────────────────────────────────────
 
-  _groupHtml(group, cmds) {
+  _groupHtml(group, cmds, powerOn = null) {
     const vis    = group.layout === "dpad" || group.layout === "keypad"
       ? group.buttons
       : group.buttons.filter(b => b && cmds.includes(b.cmd));
     const hasAny = group.buttons.some(b => b && cmds.includes(b.cmd));
     if (!hasAny) return "";
     switch (group.layout) {
-      case "power":  return this._renderPower(vis.filter(b => b && cmds.includes(b.cmd)), cmds);
+      case "power":  return this._renderPower(vis.filter(b => b && cmds.includes(b.cmd)), cmds, powerOn);
       case "dpad":   return this._renderDpad(group.buttons, cmds);
       case "keypad": return this._renderKeypad(group.buttons, cmds);
       default:       return this._renderRow(vis.filter(b => b && cmds.includes(b.cmd)));
     }
   }
 
-  _renderPower(vis, cmds = []) {
+  _renderPower(vis, cmds = [], powerOn = null) {
     if (!vis.length) return "";
     const hasCycle = cmds.includes("source_cycle");
     const cycleBtn = hasCycle
       ? `<button class="rmt-btn btn-cycle" data-cmd="source_cycle" title="Cycle Input"><ha-icon icon="mdi:import"></ha-icon></button>`
       : "";
-    const rowCls = hasCycle ? "rmt-row pwr-row" : "rmt-row";
+    const rowCls   = hasCycle ? "rmt-row pwr-row" : "rmt-row";
+    const pwrCls   = "rmt-btn btn-power-icon" + (powerOn === true ? " btn-power-icon--on" : "");
     if (vis.length === 1 && vis[0].cmd === "power") {
       return `<div class="${rowCls}">
-        <button class="rmt-btn btn-power-icon" data-cmd="power" title="Power">⏻</button>
+        <button class="${pwrCls}" data-cmd="power" title="Power"><ha-icon icon="mdi:power"></ha-icon></button>
         ${cycleBtn}
       </div>`;
     }
@@ -839,7 +929,7 @@ class TasmotaIrRemoteCard extends HTMLElement {
       vis.map(b => {
         const isColor = b.cls && b.cls.includes("btn-color");
         const inner   = isColor ? "" : b.icon
-          ? `<span class="b-icon">${b.icon}</span>`
+          ? iconHtml(b.icon)
           : `<span class="b-lbl">${b.label || b.cmd}</span>`;
         const cls   = "rmt-btn" + (b.cls ? " " + b.cls : "") + (HOLD_CMDS.has(b.cmd) ? " hold-capable" : "");
         const title = b.title || b.label || b.cmd;
@@ -855,7 +945,7 @@ class TasmotaIrRemoteCard extends HTMLElement {
       const b = m[pos];
       if (!b || !cmds.includes(b.cmd)) return `<div class="dpad-void"></div>`;
       const extra = b.cmd === "ok" ? " dpad-ok" : " dpad-arrow";
-      return `<button class="rmt-btn${extra}" data-cmd="${b.cmd}">${b.icon || b.label}</button>`;
+      return `<button class="rmt-btn${extra}" data-cmd="${b.cmd}">${b.icon ? iconHtml(b.icon) : b.label}</button>`;
     };
     return `<div class="dpad-wrap">
       <div class="dpad-row">${cell("top")}</div>
@@ -874,7 +964,7 @@ class TasmotaIrRemoteCard extends HTMLElement {
     }</div>`;
   }
 
-  _renderVdcZone(cmds, hidden) {
+  _renderVdcZone(cmds, hidden, powerOn = null, dpadStyle = "dpad") {
     const powerGrp = GROUP_DEFS.find(g => g.id === "power");
     const volGrp   = GROUP_DEFS.find(g => g.id === "volume");
     const chGrp    = GROUP_DEFS.find(g => g.id === "channels");
@@ -893,22 +983,27 @@ class TasmotaIrRemoteCard extends HTMLElement {
       .map(b => {
         const cls   = "rmt-btn" + (b.cls ? " " + b.cls : "") + (HOLD_CMDS.has(b.cmd) ? " hold-capable" : "");
         const inner = b.icon
-          ? `<span class="b-icon">${b.icon}</span>`
+          ? iconHtml(b.icon)
           : `<span class="b-lbl">${b.label || b.cmd}</span>`;
         return `<button class="${cls}" data-cmd="${b.cmd}" title="${b.label || b.cmd}">${inner}</button>`;
       }).join("");
 
     let pwrHtml = "";
     if (hasPower) {
-      const btns = powerGrp.buttons.filter(b => b && cmds.includes(b.cmd));
+      const btns   = powerGrp.buttons.filter(b => b && cmds.includes(b.cmd));
+      const pwrCls = "rmt-btn btn-power-icon" + (powerOn === true ? " btn-power-icon--on" : "");
       pwrHtml = (btns.length === 1 && btns[0].cmd === "power")
-        ? `<button class="rmt-btn btn-power-icon" data-cmd="power" title="Power">⏻</button>`
+        ? `<button class="${pwrCls}" data-cmd="power" title="Power"><ha-icon icon="mdi:power"></ha-icon></button>`
         : btns.map(b => `<button class="rmt-btn btn-power" data-cmd="${b.cmd}">${b.label}</button>`).join("");
     }
     const cycHtml  = hasCycle ? `<button class="rmt-btn btn-cycle" data-cmd="source_cycle" title="Cycle Input"><ha-icon icon="mdi:import"></ha-icon></button>` : "";
     const volHtml  = hasVol  ? makeColBtns(volGrp.buttons)  : "";
     const chHtml   = hasCh   ? makeColBtns(chGrp.buttons)   : "";
-    const dpadHtml = hasDpad ? this._renderDpad(dpadGrp.buttons, cmds) : "";
+    const dpadHtml = hasDpad
+      ? (dpadStyle === "touchpad"
+          ? this._renderTouchpad(cmds)
+          : this._renderDpad(dpadGrp.buttons, cmds))
+      : "";
 
     const hasHeader = hasPower || hasCycle;
 
@@ -927,6 +1022,17 @@ class TasmotaIrRemoteCard extends HTMLElement {
       <div class="vdc-g-col">${volHtml}</div>
       <div class="vdc-g-dpad">${dpadHtml}</div>
       <div class="vdc-g-col">${chHtml}</div>
+    </div>`;
+  }
+
+  _renderTouchpad(cmds) {
+    const has = cmd => cmds.includes(cmd);
+    return `<div class="touchpad" data-touchpad>
+      ${has("up")    ? `<ha-icon icon="mdi:chevron-up"    class="tp-hint tp-hint-top"></ha-icon>`    : ""}
+      ${has("left")  ? `<ha-icon icon="mdi:chevron-left"  class="tp-hint tp-hint-left"></ha-icon>`   : ""}
+      ${has("ok")    ? `<div class="tp-center-dot"></div>`                                            : ""}
+      ${has("right") ? `<ha-icon icon="mdi:chevron-right" class="tp-hint tp-hint-right"></ha-icon>`  : ""}
+      ${has("down")  ? `<ha-icon icon="mdi:chevron-down"  class="tp-hint tp-hint-bottom"></ha-icon>` : ""}
     </div>`;
   }
 
@@ -1092,8 +1198,8 @@ ha-card { overflow: hidden; border-radius: 12px; }
   box-shadow: 0 2px 6px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06);
 }
 .rmt-btn:active {
-  background: var(--primary-color, #03a9f4) !important;
-  color: #fff !important;
+  background: color-mix(in srgb, var(--primary-color, #03a9f4) 30%, transparent) !important;
+  color: var(--primary-color, #03a9f4) !important;
   transform: scale(0.87);
   box-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
@@ -1109,9 +1215,7 @@ ha-card { overflow: hidden; border-radius: 12px; }
 }
 
 .b-icon { font-size: 2em; line-height: 1; }
-[data-cmd="settings"] .b-icon { font-size: 2.5em; }
-[data-cmd="home"] .b-icon { font-size: 3em; display: inline-block; transform: translateY(-0.08em); }
-.b-lbl  { font-size: 0.82em; letter-spacing: 0.01em; }
+.b-lbl  { font-size: 1em; letter-spacing: 0.01em; }
 
 /* ── Row ───────────────────────────────────────────────────── */
 .rmt-row {
@@ -1144,13 +1248,14 @@ ha-card { overflow: hidden; border-radius: 12px; }
 /* ── VDC Grid ──────────────────────────────────────────────── */
 .vdc-grid {
   display: grid;
-  grid-template-columns: minmax(64px, auto) auto minmax(64px, auto);
+  grid-template-columns: 64px auto 64px;
   column-gap: 14px;
   row-gap: 10px;
   justify-content: center;
   width: 100%;
 }
 .vdc-g-hdr { display: flex; justify-content: center; align-items: center; }
+.vdc-g-hdr .btn-cycle { width: 100%; }
 .vdc-g-col {
   display: flex;
   flex-direction: column;
@@ -1170,8 +1275,12 @@ ha-card { overflow: hidden; border-radius: 12px; }
   border-radius: 50% !important;
   background: var(--secondary-background-color, rgba(120,120,120,0.08)) !important;
   color: var(--error-color, #e53935) !important;
-  font-size: 1.7em;
   box-shadow: 0 2px 8px rgba(229,57,53,0.25);
+}
+.btn-power-icon ha-icon { --mdc-icon-size: 28px; }
+.btn-power-icon--on {
+  color: var(--success-color, #43a047) !important;
+  box-shadow: 0 2px 8px rgba(67,160,71,0.35);
 }
 
 /* ── Power ─────────────────────────────────────────────────── */
@@ -1201,7 +1310,6 @@ ha-card { overflow: hidden; border-radius: 12px; }
   outline-offset: -2px;
   box-shadow: none;
 }
-.dpad-ok:active { background: rgba(3,169,244,0.15) !important; }
 
 /* ── Color circles ─────────────────────────────────────────── */
 .btn-color {
@@ -1237,6 +1345,49 @@ ha-card { overflow: hidden; border-radius: 12px; }
 .kp-btn {
   width: 100%; min-height: 50px !important;
   font-size: 1.2em; font-weight: 600; border-radius: 8px !important;
+}
+
+/* ── Touch pad ─────────────────────────────────────────────── */
+.touchpad {
+  position: relative;
+  width: 192px;
+  height: 168px;
+  border-radius: 18px;
+  background: var(--secondary-background-color, rgba(120,120,120,0.08));
+  box-shadow: 0 1px 4px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s;
+}
+.touchpad.tp-pressing {
+  background: var(--secondary-background-color, rgba(120,120,120,0.14));
+}
+.touchpad.tp-flash {
+  background: color-mix(in srgb, var(--primary-color, #03a9f4) 30%, transparent);
+  transition: background 0s;
+}
+.tp-hint {
+  position: absolute;
+  --mdc-icon-size: 18px;
+  opacity: 0.25;
+  color: var(--primary-text-color);
+}
+.tp-hint-top    { top: 10px;    left: 50%; transform: translateX(-50%); }
+.tp-hint-bottom { bottom: 10px; left: 50%; transform: translateX(-50%); }
+.tp-hint-left   { left: 10px;  top: 50%;  transform: translateY(-50%); }
+.tp-hint-right  { right: 10px; top: 50%;  transform: translateY(-50%); }
+.tp-center-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--secondary-text-color, #888);
+  opacity: 0.35;
 }
 
 /* ── Section label ─────────────────────────────────────────── */

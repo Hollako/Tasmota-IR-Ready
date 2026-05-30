@@ -19,6 +19,7 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from .const import (
     CONF_AVAILABILITY_TOPIC,
     CONF_COMMAND_TOPIC,
+    CONF_POWER_SENSOR,
     CONF_MEDIA_BITS,
     CONF_MEDIA_MUTE_DATA,
     CONF_MEDIA_POWER_DATA,
@@ -223,6 +224,7 @@ class TasmotaIrRemote(RestoreEntity, RemoteEntity):
         )
         self._source_index: int | None = None
         self._availability_topic: str | None = config.get(CONF_AVAILABILITY_TOPIC) or None
+        self._power_sensor: str | None = (config.get(CONF_POWER_SENSOR) or "").strip() or None
         self._available: bool = True
         self._unsubscribes: list = []
 
@@ -279,6 +281,8 @@ class TasmotaIrRemote(RestoreEntity, RemoteEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return configured command names and source info for diagnostics."""
         attrs: dict[str, Any] = {"configured_commands": list(self._commands)}
+        if self._power_sensor:
+            attrs["power_sensor"] = self._power_sensor
         if self._source_names:
             attrs["source_mode"] = self._source_mode
             attrs["source_list"] = self._source_names
