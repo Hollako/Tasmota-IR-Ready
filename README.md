@@ -199,6 +199,10 @@ Controls TVs and AV receivers using Tasmota's `IRSend` command. You configure he
 - **Direct** - each source has its own unique IR code; selecting a source sends that code immediately
 - **Cycle** - a single IR code cycles through inputs; the integration tracks the current position and presses the button the right number of times to reach the target source
 
+**Optional sensors:**
+
+- `power_sensor` - external binary sensor entity reflecting the TV/device physical power state; keeps HA in sync when the device is controlled by the original remote or another means
+
 ---
 
 ## Fan
@@ -328,6 +332,7 @@ remotes:
 | `card_icon` | | Emoji icon shown on the tab. Choices: 📺 TV · 📡 Satellite · 🖥 Monitor · 🎬 Projector · 🎮 Game · 🔊 Speaker · 📻 Radio · 💿 DVD · 📼 Recorder · 🎛 Remote |
 | `hidden_groups` | | List of button group IDs to hide: `power`, `volume`, `channels`, `dpad`, `keypad`, `colors`, `nav_aux`, `colors` |
 | `extra_buttons` | | List of additional custom buttons (see below) |
+| `dpad_style` | | Navigation style in the VDC zone: `dpad` (default, four directional buttons) or `touchpad` (swipe surface: tap for OK, swipe for directions) |
 
 ### Extra buttons
 
@@ -341,12 +346,32 @@ extra_buttons:
     color: "#ff0000"
 ```
 
+### Power button state
+
+When a `power_sensor` is configured on the remote entity (via **Configure** on the integration entry), the power button reflects the sensor state in real time:
+
+- **Green** - the sensor is `on` (device is powered)
+- **Red** (default appearance) - the sensor is `off` or unavailable (device is off)
+
+If no `power_sensor` is assigned, the power button stays in its default style with no colour change.
+
+### Navigation style
+
+The D-pad in the VDC zone can be switched to a **touch pad** per remote using the `dpad_style` option:
+
+| Style | Description |
+|-------|-------------|
+| `dpad` | Four directional buttons + OK button (default) |
+| `touchpad` | Single swipe surface — tap anywhere for OK, swipe in any direction to send up/down/left/right |
+
+The touch pad flashes the theme's accent colour on each interaction and shows faint directional hints at its edges. Change the style from the **Visual editor** or add `dpad_style: touchpad` directly in YAML.
+
 ### Layout
 
 The card is divided into sections that appear only when the corresponding commands are configured on the entity:
 
 - **Header row** - power button (left) and cycle-input button (right), column-aligned above the VDC zone
-- **VDC zone** - Volume column | D-pad center | Channel column
+- **VDC zone** - Volume column | D-pad / Touch pad center | Channel column
 - **Number keypad** - 1–9 + 0
 - **Navigation** - back, home, menu, info, exit, settings
 - **Color buttons** - red, green, yellow, blue
@@ -358,6 +383,7 @@ The card is divided into sections that appear only when the corresponding comman
 
 - **Tap** - sends one IR command
 - **Hold** - repeats automatically for `volume_up`, `volume_down`, `channel_up`, `channel_down` (starts after 300 ms, repeats every 200 ms)
+- **Swipe** *(touch pad style only)* - swipe up / down / left / right to send the corresponding directional command; a short tap anywhere on the surface sends OK
 
 ### Visual editor
 
