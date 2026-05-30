@@ -6,6 +6,7 @@ from homeassistant.components import panel_custom
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+import homeassistant.helpers.config_validation as cv
 
 from .const import (
     CONF_DEVICE_TYPE,
@@ -124,6 +125,9 @@ async def _async_setup_frontend(hass: HomeAssistant) -> None:
         pass  # Panel already registered — harmless.
 
     async_register_websocket_commands(hass)
+
+
+CONFIG_SCHEMA = cv.config_entry_only_schema({})
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:

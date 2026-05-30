@@ -4,7 +4,7 @@
   "version": "1.0.5",
   "documentation": "https://github.com/Hollako/Tasmota-IR-Ready",
   "issue_tracker": "https://github.com/Hollako/Tasmota-IR-Ready/issues",
-  "homeassistant": "2024.11.0",
+  "iot_class": "local_push",
   "config_flow": true,
   "requirements": [],
   "dependencies": [
@@ -12,7 +12,8 @@
     "sensor"
   ],
   "after_dependencies": [
-    "lovelace"
+    "lovelace",
+    "http"
   ],
   "codeowners": [
     "@Hollako"

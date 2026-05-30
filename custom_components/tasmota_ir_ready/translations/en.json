@@ -278,7 +278,6 @@
           "learn_command": "Select a command and click Submit to enter IR learning mode. The integration will subscribe to your Tasmota RESULT topic and fill the hex value when a button is pressed (30 s timeout).",
           "command_topic": "Topic to publish IRSend commands to, e.g. cmnd/tasmota_ir/IRSend",
           "availability_topic": "Leave blank to auto-derive from the command topic, e.g. tele/tasmota_ir/LWT",
-          "learn_topic": "MQTT topic Tasmota publishes IR received data to, e.g. tele/tasmota_ir/RESULT",
           "media_protocol": "The protocol reported by Tasmota when decoding the remote, e.g. NEC, SONY, SAMSUNG.",
           "media_bits": "The bit length reported by Tasmota for this remote code.",
           "media_power_data": "Only the hex Data value, e.g. 0x20DF10EF. The integration builds the full IRSend JSON payload."
@@ -386,7 +385,6 @@
           "learn_command": "Select a command and click Submit to enter IR learning mode. The integration will subscribe to your Tasmota RESULT topic and fill the hex value when a button is pressed (30 s timeout).",
           "command_topic": "Topic to publish IRSend commands to, e.g. cmnd/tasmota_ir/IRSend",
           "availability_topic": "Leave blank to auto-derive from the command topic, e.g. tele/tasmota_ir/LWT",
-          "learn_topic": "MQTT topic Tasmota publishes IR received data to, e.g. tele/tasmota_ir/RESULT",
           "media_protocol": "The protocol reported by Tasmota when decoding the remote, e.g. NEC, SONY, SAMSUNG.",
           "media_bits": "The bit length reported by Tasmota for this remote code.",
           "media_power_data": "Only the hex Data value, e.g. 0x20DF10EF. The integration builds the full IRSend JSON payload."
