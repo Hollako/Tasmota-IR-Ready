@@ -592,6 +592,19 @@ _LEARN_COMMAND_LABEL: dict[str, str] = {
 }
 
 
+class _OptionalEntitySelector(EntitySelector):
+    """Entity selector that accepts Home Assistant's empty optional value."""
+
+    def __call__(self, data: Any) -> str | list[str]:
+        if data == "":
+            return ""
+        return super().__call__(data)
+
+
+def _optional_entity_selector(domain: str | list[str]) -> _OptionalEntitySelector:
+    return _OptionalEntitySelector(EntitySelectorConfig(domain=domain))
+
+
 # ---------------------------------------------------------------------------
 # Config flow
 # ---------------------------------------------------------------------------
@@ -1101,14 +1114,10 @@ class TasmotaIrhvacOptionsFlow(OptionsFlow):
                     CONF_MQTT_DELAY,
                     default=float(current.get(CONF_MQTT_DELAY, DEFAULT_MQTT_DELAY)),
                 ): NumberSelector(NumberSelectorConfig(min=0, max=10, step=0.1, mode=NumberSelectorMode.BOX)),
-                vol.Optional(CONF_TEMP_SENSOR): EntitySelector(
-                    EntitySelectorConfig(domain="sensor")
-                ),
-                vol.Optional(CONF_HUMIDITY_SENSOR): EntitySelector(
-                    EntitySelectorConfig(domain="sensor")
-                ),
-                vol.Optional(CONF_POWER_SENSOR): EntitySelector(
-                    EntitySelectorConfig(domain=["binary_sensor", "sensor", "switch"])
+                vol.Optional(CONF_TEMP_SENSOR): _optional_entity_selector("sensor"),
+                vol.Optional(CONF_HUMIDITY_SENSOR): _optional_entity_selector("sensor"),
+                vol.Optional(CONF_POWER_SENSOR): _optional_entity_selector(
+                    ["binary_sensor", "sensor", "switch"]
                 ),
             }
         )
@@ -1208,7 +1217,7 @@ class TasmotaIrhvacOptionsFlow(OptionsFlow):
                             vol.Optional(
                                 CONF_POWER_SENSOR,
                                 description={"suggested_value": current.get(CONF_POWER_SENSOR, "")},
-                            ): EntitySelector(EntitySelectorConfig(domain=["binary_sensor", "sensor", "switch"])),
+                            ): _optional_entity_selector(["binary_sensor", "sensor", "switch"]),
                             vol.Required(
                                 CONF_MEDIA_PROTOCOL,
                                 default=current.get(
@@ -1389,7 +1398,7 @@ class TasmotaIrhvacOptionsFlow(OptionsFlow):
                             vol.Optional(
                                 CONF_POWER_SENSOR,
                                 description={"suggested_value": current.get(CONF_POWER_SENSOR, "")},
-                            ): EntitySelector(EntitySelectorConfig(domain=["binary_sensor", "sensor", "switch"])),
+                            ): _optional_entity_selector(["binary_sensor", "sensor", "switch"]),
                             vol.Required(
                                 CONF_MEDIA_PROTOCOL,
                                 default=current.get(
@@ -1614,7 +1623,7 @@ class TasmotaIrhvacOptionsFlow(OptionsFlow):
                             vol.Optional(
                                 CONF_FAN_POWER_SENSOR,
                                 description={"suggested_value": current.get(CONF_FAN_POWER_SENSOR, "")},
-                            ): EntitySelector(EntitySelectorConfig(domain="binary_sensor")),
+                            ): _optional_entity_selector("binary_sensor"),
                         }
                     ),
                     {"collapsed": False},
@@ -1775,11 +1784,11 @@ class TasmotaIrhvacOptionsFlow(OptionsFlow):
                             vol.Optional(
                                 CONF_HUMIDIFIER_HUMIDITY_SENSOR,
                                 description={"suggested_value": current.get(CONF_HUMIDIFIER_HUMIDITY_SENSOR, "")},
-                            ): EntitySelector(EntitySelectorConfig(domain="sensor")),
+                            ): _optional_entity_selector("sensor"),
                             vol.Optional(
                                 CONF_HUMIDIFIER_POWER_SENSOR,
                                 description={"suggested_value": current.get(CONF_HUMIDIFIER_POWER_SENSOR, "")},
-                            ): EntitySelector(EntitySelectorConfig(domain="binary_sensor")),
+                            ): _optional_entity_selector("binary_sensor"),
                         }
                     ),
                     {"collapsed": False},
