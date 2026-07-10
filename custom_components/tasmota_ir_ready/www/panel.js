@@ -2027,10 +2027,15 @@ class TasmotaIrhvacPanel extends HTMLElement {
   // IR Test
   // -----------------------------------------------------------------------
 
+  _isRawIrValue(data) {
+    const value = (data || "").trim();
+    return value.toLowerCase().startsWith("raw,") || /^\d+(?:\s*,\s*\d+)+$/.test(value);
+  }
+
   async _testIr(fieldKey) {
     const data = (this._getFieldValue(fieldKey) || "").trim();
     if (!data) {
-      this._showStatus("err", "No IR code to test. Enter a hex value first.");
+      this._showStatus("err", "No IR data to test. Enter a hex code or raw timing payload first.");
       return;
     }
     const topic = (this._getFieldValue("command_topic") || "").trim();
@@ -2040,6 +2045,7 @@ class TasmotaIrhvacPanel extends HTMLElement {
     }
     const protocol = (this._getFieldValue("media_protocol") || "NEC").toUpperCase();
     const bits = parseInt(this._getFieldValue("media_bits") || "32", 10);
+    const isRaw = this._isRawIrValue(data);
     try {
       await this._hass.callWS({
         type: "tasmota_ir_ready/send_ir",
@@ -2048,7 +2054,7 @@ class TasmotaIrhvacPanel extends HTMLElement {
         bits,
         data,
       });
-      this._showStatus("ok", `Sent ${data} (${protocol}/${bits})`);
+      this._showStatus("ok", isRaw ? `Sent raw ${data}` : `Sent ${data} (${protocol}/${bits})`);
     } catch (e) {
       this._showStatus("err", `Send failed: ${e.message || e}`);
     }
@@ -2207,7 +2213,7 @@ class TasmotaIrhvacPanel extends HTMLElement {
         <div class="field-row" data-field-key="media_source_cycle_data">
           <span class="field-label">Cycle Button IR Code</span>
           <input type="text" class="field-input ir-field" data-key="media_source_cycle_data"
-            value="${cycleData}" placeholder="0x…" autocomplete="off" spellcheck="false">
+            value="${cycleData}" placeholder="0x... or 56,320,640,..." autocomplete="off" spellcheck="false">
           <button class="btn-icon btn-learn" data-learn="media_source_cycle_data" title="Learn from physical remote">📡 Learn</button>
           <button class="btn-icon btn-test" data-test="media_source_cycle_data" title="Send this code now"${hasData ? "" : " disabled"}>▶ Test</button>
         </div>
@@ -2238,7 +2244,7 @@ class TasmotaIrhvacPanel extends HTMLElement {
           <div class="field-row" data-field-key="media_source_${i}_data">
             <span class="field-label">Source ${i} IR Code</span>
             <input type="text" class="field-input ir-field" data-key="media_source_${i}_data"
-              value="${dataVal}" placeholder="0x…" autocomplete="off" spellcheck="false">
+              value="${dataVal}" placeholder="0x... or 56,320,640,..." autocomplete="off" spellcheck="false">
             <button class="btn-icon btn-learn" data-learn="media_source_${i}_data" title="Learn from physical remote">📡 Learn</button>
             <button class="btn-icon btn-test"  data-test="media_source_${i}_data" title="Send this code now"${hasData ? "" : " disabled"}>▶ Test</button>
             <button class="btn-icon btn-del-cmd" data-del-source="${i}" title="Remove source">✕</button>
@@ -2273,7 +2279,7 @@ class TasmotaIrhvacPanel extends HTMLElement {
         <div class="field-row" data-field-key="media_source_${i}_data">
           <span class="field-label">Source ${i} IR Code</span>
           <input type="text" class="field-input ir-field" data-key="media_source_${i}_data"
-            value="${dataVal}" placeholder="0x…" autocomplete="off" spellcheck="false">
+            value="${dataVal}" placeholder="0x... or 56,320,640,..." autocomplete="off" spellcheck="false">
           <button class="btn-icon btn-learn" data-learn="media_source_${i}_data" title="Learn from physical remote">📡 Learn</button>
           <button class="btn-icon btn-test" data-test="media_source_${i}_data" title="Send this code now"${hasData ? "" : " disabled"}>▶ Test</button>
           <button class="btn-icon btn-del-cmd" data-del-source="${i}" title="Remove source">✕</button>
@@ -2304,7 +2310,7 @@ class TasmotaIrhvacPanel extends HTMLElement {
         <div class="field-row" data-field-key="fan_speed_${i}_data">
           <span class="field-label">Speed ${i} IR Code</span>
           <input type="text" class="field-input ir-field" data-key="fan_speed_${i}_data"
-            value="${dataVal}" placeholder="0x…" autocomplete="off" spellcheck="false">
+            value="${dataVal}" placeholder="0x... or 56,320,640,..." autocomplete="off" spellcheck="false">
           <button class="btn-icon btn-learn" data-learn="fan_speed_${i}_data" title="Learn from physical remote">📡 Learn</button>
           <button class="btn-icon btn-test"  data-test="fan_speed_${i}_data" title="Send this code now"${hasData ? "" : " disabled"}>▶ Test</button>
           <button class="btn-icon btn-del-cmd" data-del-fan-speed="${i}" title="Remove speed">✕</button>
@@ -2335,7 +2341,7 @@ class TasmotaIrhvacPanel extends HTMLElement {
         <div class="field-row" data-field-key="humidifier_mode_${i}_data">
           <span class="field-label">Mode ${i} IR Code</span>
           <input type="text" class="field-input ir-field" data-key="humidifier_mode_${i}_data"
-            value="${dataVal}" placeholder="0x…" autocomplete="off" spellcheck="false">
+            value="${dataVal}" placeholder="0x... or 56,320,640,..." autocomplete="off" spellcheck="false">
           <button class="btn-icon btn-learn" data-learn="humidifier_mode_${i}_data" title="Learn from physical remote">📡 Learn</button>
           <button class="btn-icon btn-test"  data-test="humidifier_mode_${i}_data" title="Send this code now"${hasData ? "" : " disabled"}>▶ Test</button>
           <button class="btn-icon btn-del-cmd" data-del-humidifier-mode="${i}" title="Remove mode">✕</button>
@@ -2360,7 +2366,7 @@ class TasmotaIrhvacPanel extends HTMLElement {
         <input type="text" class="field-input ir-field custom-cmd-data"
           data-custom-data="${idx}"
           value="${this._escHtml(cmd.data || "")}"
-          placeholder="0x…" autocomplete="off" spellcheck="false">
+          placeholder="0x... or 56,320,640,..." autocomplete="off" spellcheck="false">
         <button class="btn-icon btn-learn" data-learn-custom="${idx}" title="Learn from physical remote">📡 Learn</button>
         <button class="btn-icon btn-test" data-test-custom="${idx}" title="Send this code now"${(cmd.data || "").trim() ? "" : " disabled"}>▶ Test</button>
         <button class="btn-icon btn-del-cmd" data-del-custom="${idx}" title="Remove command">✕</button>
@@ -2455,7 +2461,7 @@ class TasmotaIrhvacPanel extends HTMLElement {
       const hasValue = (value || "").trim().length > 0;
       inputHtml = `
         <input type="text" class="field-input ir-field" data-key="${field.key}"
-          value="${this._escHtml(value)}" placeholder="0x…" autocomplete="off" spellcheck="false">
+          value="${this._escHtml(value)}" placeholder="0x... or 56,320,640,..." autocomplete="off" spellcheck="false">
         <button class="btn-icon btn-learn" data-learn="${field.key}" title="Learn from physical remote">📡 Learn</button>
         <button class="btn-icon btn-test" data-test="${field.key}" title="Send this code now"${hasValue ? "" : " disabled"}>▶ Test</button>`;
     } else if (field.type === "entity") {
@@ -2930,7 +2936,7 @@ class TasmotaIrhvacPanel extends HTMLElement {
   async _testIrFromValue(data) {
     data = (data || "").trim();
     if (!data) {
-      this._showStatus("err", "No IR code to test. Enter a hex value first.");
+      this._showStatus("err", "No IR data to test. Enter a hex code or raw timing payload first.");
       return;
     }
     const topic = (this._getFieldValue("command_topic") || "").trim();
@@ -2940,12 +2946,13 @@ class TasmotaIrhvacPanel extends HTMLElement {
     }
     const protocol = (this._getFieldValue("media_protocol") || "NEC").toUpperCase();
     const bits = parseInt(this._getFieldValue("media_bits") || "32", 10);
+    const isRaw = this._isRawIrValue(data);
     try {
       await this._hass.callWS({
         type: "tasmota_ir_ready/send_ir",
         topic, protocol, bits, data,
       });
-      this._showStatus("ok", `Sent ${data} (${protocol}/${bits})`);
+      this._showStatus("ok", isRaw ? `Sent raw ${data}` : `Sent ${data} (${protocol}/${bits})`);
     } catch (e) {
       this._showStatus("err", `Send failed: ${e.message || e}`);
     }

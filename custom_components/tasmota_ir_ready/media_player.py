@@ -1,7 +1,6 @@
 """Media player entities for Tasmota IRSend devices."""
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
@@ -67,6 +66,7 @@ from .const import (
     SOURCE_MODE_CYCLE,
     SOURCE_MODE_DIRECT,
 )
+from .irsend import build_irsend_payload
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -284,16 +284,11 @@ class TasmotaIrMediaPlayer(RestoreEntity, MediaPlayerEntity):
         return MediaPlayerState.ON
 
     def _build_irsend_payload(self, data: str) -> str:
-        """Build the JSON payload expected by Tasmota IRSend."""
-        data = data.strip()
-        if data and not data.lower().startswith("0x"):
-            data = f"0x{data}"
-        return json.dumps(
-            {
-                "Protocol": self._protocol,
-                "Bits": self._bits,
-                "Data": data,
-            }
+        """Build the MQTT payload expected by Tasmota IRSend."""
+        return build_irsend_payload(
+            data,
+            self._protocol,
+            self._bits,
         )
 
     async def _async_publish_command(self, data: str) -> None:

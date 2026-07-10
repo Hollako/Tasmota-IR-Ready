@@ -270,6 +270,13 @@ Generic IR remote entity that sends named commands via `remote.send_command`. Us
 
 **Custom commands** - add extra IR codes from the integration's Configure panel. They appear automatically on the card with the name you gave them.
 
+**Command data format** - every IR code field is detected separately, so the same remote can mix decoded hex commands and raw timing commands:
+
+- **Hex / decoded** - use values like `0xE0E040BF` or `E0E040BF`. These are sent as Tasmota JSON using the device's configured protocol and bit length.
+- **Raw timings** - use comma-separated timing payloads like `56,320,640,640,640,320,85000`, or values starting with `raw,`. These are sent to Tasmota unchanged.
+
+The format is not selected for the whole device. It is chosen per command from the value you paste into that command's data field. If learning an unknown signal, enable `SetOption58 1` on the Tasmota device so MQTT includes `RawData`.
+
 ---
 
 ## Dashboard

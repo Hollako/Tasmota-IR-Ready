@@ -12,6 +12,7 @@ from homeassistant.components import mqtt, websocket_api
 from homeassistant.core import HomeAssistant, callback
 
 from .const import CONF_TEMP_SENSOR, DOMAIN
+from .irsend import build_irsend_payload
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -306,7 +307,20 @@ async def ws_learn_ir(
     def _on_message(mqtt_msg: mqtt.ReceiveMessage) -> None:
         try:
             payload = json.loads(mqtt_msg.payload)
-            data = payload.get("IrReceived", {}).get("Data", "")
+            received = payload.get("IrReceived", {})
+            data = received.get("Data", "")
+            protocol = str(received.get("Protocol", "")).upper()
+            if not data or protocol == "UNKNOWN":
+                raw_data = received.get("RawData")
+                if isinstance(raw_data, list) and raw_data:
+                    if len(raw_data) == 1 and isinstance(raw_data[0], str):
+                        data = f"0,{raw_data[0]}"
+                    else:
+                        data = "0," + ",".join(str(value) for value in raw_data)
+                elif isinstance(raw_data, str) and raw_data:
+                    data = f"0,{raw_data}"
+                else:
+                    data = ""
             if data and not future.done():
                 future.set_result(data)
         except Exception:
@@ -346,14 +360,11 @@ async def ws_send_ir(
     if not data:
         connection.send_error(msg["id"], "no_data", "No IR data provided")
         return
-    if not data.lower().startswith("0x"):
-        data = f"0x{data}"
-
-    payload = json.dumps({
-        "Protocol": msg["protocol"].upper(),
-        "Bits": int(msg["bits"]),
-        "Data": data,
-    })
+    payload = build_irsend_payload(
+        data,
+        msg["protocol"],
+        int(msg["bits"]),
+    )
     await mqtt.async_publish(hass, msg["topic"], payload)
     connection.send_result(msg["id"], {"success": True})
 
