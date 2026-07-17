@@ -157,6 +157,8 @@ const SECTIONS = {
       fields: [
         rf("name", "Device Name"),
         rf("vendor", "AC Vendor / Brand"),
+        f("profile_brand", "Profile Brand (optional)"),
+        f("profile_model", "Profile Model (optional)"),
         rf("command_topic", "MQTT Command Topic"),
         rf("state_topic", "MQTT State Topic"),
         f("state_topic_2", "MQTT State Topic 2 (optional)"),
@@ -206,6 +208,8 @@ const SECTIONS = {
       label: "Connection",
       fields: [
         rf("name", "Device Name"),
+        f("profile_brand", "Brand (optional)"),
+        f("profile_model", "Model (optional)"),
         rf("command_topic", "MQTT Command Topic"),
         f("availability_topic", "Availability Topic (optional)"),
         ent("power_sensor", "Power Sensor (optional)", "binary_sensor"),
@@ -252,6 +256,8 @@ const SECTIONS = {
       label: "Connection",
       fields: [
         rf("name", "Device Name"),
+        f("profile_brand", "Brand (optional)"),
+        f("profile_model", "Model (optional)"),
         rf("command_topic", "MQTT Command Topic"),
         f("availability_topic", "Availability Topic (optional)"),
         ent("power_sensor", "Power Sensor (optional)", "binary_sensor"),
@@ -343,6 +349,8 @@ const SECTIONS = {
       label: "Connection",
       fields: [
         rf("name", "Device Name"),
+        f("profile_brand", "Brand (optional)"),
+        f("profile_model", "Model (optional)"),
         rf("command_topic", "MQTT Command Topic"),
         f("availability_topic", "Availability Topic (optional)"),
         f("learn_topic", "IR Learn Topic (for learning)"),
@@ -385,6 +393,8 @@ const SECTIONS = {
       label: "Connection",
       fields: [
         rf("name", "Device Name"),
+        f("profile_brand", "Brand (optional)"),
+        f("profile_model", "Model (optional)"),
         rf("command_topic", "MQTT Command Topic"),
         f("availability_topic", "Availability Topic (optional)"),
         f("learn_topic", "IR Learn Topic (for learning)"),
@@ -435,6 +445,7 @@ const DB_SKIP_FIELDS = new Set([
   "command_topic", "state_topic", "state_topic_2", "availability_topic",
   "temperature_sensor", "humidity_sensor", "power_sensor",
   "name", "learn_topic",
+  "profile_brand", "profile_model",
   "humidifier_humidity_sensor",
   "fan_power_sensor",
   "humidifier_power_sensor",
@@ -468,6 +479,8 @@ const FIELD_DEFAULTS = {
   media_bits:              32,
   media_source_cycle_delay: 0.5,
   media_source_mode:       "direct",
+  profile_brand:           "",
+  profile_model:           "",
   // Humidifier humidity settings
   humidifier_min_humidity:  30,
   humidifier_max_humidity:  80,
@@ -1870,6 +1883,10 @@ class TasmotaIrhvacPanel extends HTMLElement {
     for (const [key, value] of Object.entries(opts)) {
       if (!skip.has(key)) this._editValues[key] = value;
     }
+    // Profile identity is top-level database metadata rather than an IR option.
+    // Keep it on the configured entry so subsequent exports can reuse it.
+    if ("brand" in profile) this._editValues.profile_brand = profile.brand || "";
+    if ("model" in profile) this._editValues.profile_model = profile.model || "";
 
     this._sourceCount = Math.max(2, this._countFilledSources());
     this._fanSpeedCount = Math.max(2, this._countFilledFanSpeeds());
@@ -1883,8 +1900,8 @@ class TasmotaIrhvacPanel extends HTMLElement {
     this._snapshotFields();
 
     const title = this._selected.title || this._getFieldValue("name") || "IR Profile";
-    const brand = this._getFieldValue("vendor") || "";
-    const model = this._getFieldValue("model") || "";
+    const brand = this._getFieldValue("profile_brand") || this._getFieldValue("vendor") || "";
+    const model = this._getFieldValue("profile_model") || "";
     const filename = `${title.replace(/\s+/g, "_")}_ir.json`;
 
     const overlay = document.createElement("div");
