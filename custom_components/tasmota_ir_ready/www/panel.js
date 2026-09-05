@@ -120,6 +120,7 @@ const TOGGLE_OPTS = [
   { value: "Clean",   label: "Clean" },
   { value: "Beep",    label: "Beep" },
   { value: "Sleep",   label: "Sleep" },
+  { value: "iFeel",   label: "iFeel" },
 ];
 
 const SWINGV_OPTS = [

@@ -254,3 +254,52 @@ set_swingh:
           options:
             - StoreOnly
             - SendStore
+
+set_ifeel:
+  name: Set iFeel
+  description: Enable or disable remote temperature sensing on a supported AC.
+  target:
+    entity:
+      integration: tasmota_ir_ready
+      domain: climate
+  fields:
+    ifeel:
+      required: true
+      selector:
+        select:
+          options:
+            - "off"
+            - "on"
+    state_mode:
+      description: Default is SendStore.
+      selector:
+        select:
+          options:
+            - StoreOnly
+            - SendStore
+
+set_sensor_temp:
+  name: Set iFeel sensor temperature
+  description: Supply the measured room temperature in Celsius. Omit sensor_temp or use null to clear the reading. Does not enable iFeel automatically.
+  target:
+    entity:
+      integration: tasmota_ir_ready
+      domain: climate
+  fields:
+    sensor_temp:
+      description: Measured room temperature, separate from the AC target temperature.
+      example: 25
+      selector:
+        number:
+          min: 0
+          max: 50
+          step: 0.1
+          unit_of_measurement: "°C"
+          mode: box
+    state_mode:
+      description: Default is SendStore.
+      selector:
+        select:
+          options:
+            - StoreOnly
+            - SendStore

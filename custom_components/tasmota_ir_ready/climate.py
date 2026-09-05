@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import math
 
 import homeassistant.helpers.config_validation as cv
 import homeassistant.util.dt as dt_util
@@ -64,6 +65,8 @@ from .const import (
     ATTR_LIGHT,
     ATTR_QUIET,
     ATTR_SLEEP,
+    ATTR_IFEEL,
+    ATTR_SENSOR_TEMP,
     ATTR_STATE_MODE,
     ATTR_SWINGH,
     ATTR_SWINGV,
@@ -147,6 +150,8 @@ from .const import (
     SERVICE_SET_SWINGH,
     SERVICE_SET_SWINGV,
     SERVICE_SLEEP_MODE,
+    SERVICE_IFEEL_MODE,
+    SERVICE_SENSOR_TEMP,
     SERVICE_TURBO_MODE,
     STATE_AUTO,
     STATE_MODE_LIST,
@@ -255,7 +260,30 @@ SERVICE_SCHEMA_SET_SWINGH = IRHVAC_SERVICE_SCHEMA.extend(
     }
 )
 
+SERVICE_SCHEMA_IFEEL_MODE = IRHVAC_SERVICE_SCHEMA.extend(
+    {
+        vol.Required(ATTR_IFEEL): vol.In(ON_OFF_LIST),
+        vol.Optional(ATTR_STATE_MODE, default=DEFAULT_STATE_MODE): vol.In(STATE_MODE_LIST),
+    }
+)
+SERVICE_SCHEMA_SENSOR_TEMP = IRHVAC_SERVICE_SCHEMA.extend(
+    {
+        vol.Optional(ATTR_SENSOR_TEMP, default=None): vol.Any(
+            None, vol.All(vol.Coerce(float), vol.Range(min=0, max=50))
+        ),
+        vol.Optional(ATTR_STATE_MODE, default=DEFAULT_STATE_MODE): vol.In(STATE_MODE_LIST),
+    }
+)
+
 SERVICE_TO_METHOD = {
+    SERVICE_IFEEL_MODE: {
+        "method": "async_set_ifeel",
+        "schema": SERVICE_SCHEMA_IFEEL_MODE,
+    },
+    SERVICE_SENSOR_TEMP: {
+        "method": "async_set_sensor_temp",
+        "schema": SERVICE_SCHEMA_SENSOR_TEMP,
+    },
     SERVICE_ECONO_MODE: {
         "method": "async_set_econo",
         "schema": SERVICE_SCHEMA_ECONO_MODE,
@@ -464,6 +492,8 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
         self._clean = config[CONF_CLEAN].lower()
         self._beep = config[CONF_BEEP].lower()
         self._sleep = config[CONF_SLEEP].lower()
+        self._ifeel = STATE_OFF
+        self._sensor_temp = None  # Always stored in Celsius; None means no reading.
         self._sub_state = None
         self._keep_mode = config[CONF_KEEP_MODE]
         self._last_on_mode = None
@@ -521,6 +551,7 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
             if isinstance(self._attr_swing_modes, list) and len(self._attr_swing_modes)
             else None
         )
+        self._apply_swing_mode()
         self._attr_preset_modes = (
             [PRESET_NONE, PRESET_AWAY] if self._away_temp else None
         )
@@ -704,6 +735,7 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
                 self._attr_fan_mode = old_state.attributes.get(ATTR_FAN_MODE)
             if old_state.attributes.get(ATTR_SWING_MODE) is not None:
                 self._attr_swing_mode = old_state.attributes.get(ATTR_SWING_MODE)
+                self._apply_swing_mode()
             if old_state.attributes.get(ATTR_LAST_ON_MODE) is not None:
                 self._last_on_mode = old_state.attributes.get(ATTR_LAST_ON_MODE)
 
@@ -828,6 +860,7 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
                     self._clean = payload["Clean"].lower()
                 if "Beep" in payload:
                     self._beep = payload["Beep"].lower()
+                self._update_ifeel_from_payload(payload)
                 if "Sleep" in payload:
                     self._sleep = payload["Sleep"]
                 if "SwingV" in payload:
@@ -1028,6 +1061,8 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
         elif swing_mode == SWING_HORIZONTAL:
             self._fix_swingh = None
 
+        self._apply_swing_mode()
+
         if not self._attr_hvac_mode == HVACMode.OFF:
             self.power_mode = STATE_ON
         await self.async_send_cmd()
@@ -1088,6 +1123,70 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
         self._state_mode = state_mode
         await self.async_send_cmd()
 
+    def _update_ifeel_from_payload(self, payload):
+        """Read optional iFeel fields without turning a null reading into zero."""
+        if "iFeel" in payload:
+            value = str(payload["iFeel"]).lower()
+            if value in (STATE_ON, STATE_OFF):
+                self._ifeel = value
+        if "SensorTemp" not in payload:
+            return
+        value = payload["SensorTemp"]
+        if value is None or value == -100:
+            self._sensor_temp = None
+            return
+        try:
+            if isinstance(value, bool):
+                raise ValueError("Boolean sensor temperature")
+            value = float(value)
+            if not math.isfinite(value):
+                raise ValueError("Non-finite sensor temperature")
+            self._sensor_temp = TemperatureConverter.convert(
+                value, self._sensor_temperature_unit(), UnitOfTemperature.CELSIUS
+            )
+        except (TypeError, ValueError):
+            _LOGGER.warning("Ignoring invalid SensorTemp: %s", value)
+
+    def _sensor_temperature_unit(self):
+        """Return the unit selected by the Tasmota Celsius field."""
+        return (UnitOfTemperature.CELSIUS if self._celsius.lower() == "on"
+                else UnitOfTemperature.FAHRENHEIT)
+
+    def _ifeel_temperature_from_sensor(self, state):
+        """Return a valid configured room reading in Celsius, or None."""
+        if state is None or state.state in (STATE_UNKNOWN, STATE_UNAVAILABLE):
+            return None
+        try:
+            value = TemperatureConverter.convert(
+                float(state.state), state.attributes["unit_of_measurement"],
+                UnitOfTemperature.CELSIUS,
+            )
+            return value if math.isfinite(value) and 0 <= value <= 50 else None
+        except (TypeError, ValueError, KeyError):
+            return None
+
+    async def async_set_ifeel(self, ifeel, state_mode):
+        """Enable or disable use of the remote sensor temperature."""
+        if ifeel not in ON_OFF_LIST:
+            return
+        self._ifeel = ifeel.lower()
+        self._state_mode = state_mode
+        await self.async_send_cmd()
+
+    async def async_set_sensor_temp(self, sensor_temp, state_mode):
+        """Set the remote reading in Celsius, or clear it with None."""
+        if self._temp_sensor:
+            raise ValueError("SensorTemp is managed by the configured Temperature Sensor")
+        if sensor_temp is not None:
+            if isinstance(sensor_temp, bool):
+                raise ValueError("Sensor temperature must be a number")
+            sensor_temp = float(sensor_temp)
+            if not math.isfinite(sensor_temp) or not 0 <= sensor_temp <= 50:
+                raise ValueError("Sensor temperature must be between 0 and 50 Celsius")
+        self._sensor_temp = sensor_temp
+        self._state_mode = state_mode
+        await self.async_send_cmd()
+
     async def async_set_sleep(self, sleep, state_mode):
         """Set new target sleep mode."""
         self._sleep = sleep.lower()
@@ -1095,44 +1194,58 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
         await self.async_send_cmd()
 
     async def async_set_swingv(self, swingv, state_mode):
-        """Set new target swingv."""
+        """Set the vertical vane independently of the climate dropdown."""
         self._swingv = swingv.lower()
-        if self._swingv != "auto":
-            self._fix_swingv = self._swingv
-            if self._attr_swing_mode == SWING_BOTH:
-                if SWING_HORIZONTAL in (self._attr_swing_modes or []):
-                    self._attr_swing_mode = SWING_HORIZONTAL
-            elif self._attr_swing_mode == SWING_VERTICAL:
-                self._attr_swing_mode = SWING_OFF
-        else:
-            if self._attr_swing_mode == SWING_HORIZONTAL:
-                if SWING_BOTH in (self._attr_swing_modes or []):
-                    self._attr_swing_mode = SWING_BOTH
-            else:
-                if SWING_VERTICAL in (self._attr_swing_modes or []):
-                    self._attr_swing_mode = SWING_VERTICAL
+        self._fix_swingv = None if self._swingv == STATE_AUTO else self._swingv
+        self._attr_swing_mode = self._swing_mode_from_payload()
         self._state_mode = state_mode
         await self.async_send_cmd()
 
     async def async_set_swingh(self, swingh, state_mode):
-        """Set new target swingh."""
+        """Set the horizontal vane independently of the climate dropdown."""
         self._swingh = swingh.lower()
-        if self._swingh != "auto":
-            self._fix_swingh = self._swingh
-            if self._attr_swing_mode == SWING_BOTH:
-                if SWING_VERTICAL in (self._attr_swing_modes or []):
-                    self._attr_swing_mode = SWING_VERTICAL
-            elif self._attr_swing_mode == SWING_HORIZONTAL:
-                self._attr_swing_mode = SWING_OFF
-        else:
-            if self._attr_swing_mode == SWING_VERTICAL:
-                if SWING_BOTH in (self._attr_swing_modes or []):
-                    self._attr_swing_mode = SWING_BOTH
-            else:
-                if SWING_HORIZONTAL in (self._attr_swing_modes or []):
-                    self._attr_swing_mode = SWING_HORIZONTAL
+        self._fix_swingh = None if self._swingh == STATE_AUTO else self._swingh
+        self._attr_swing_mode = self._swing_mode_from_payload()
         self._state_mode = state_mode
         await self.async_send_cmd()
+
+    def _apply_swing_mode(self):
+        """Translate an explicit dropdown selection into the two vane states.
+
+        Sending unrelated commands must preserve these states, including axes
+        controlled by feature switches but absent from the dropdown options.
+        """
+        # Set the swing mode - default off
+        self._swingv = STATE_OFF if self._fix_swingv is None else self._fix_swingv
+        self._swingh = STATE_OFF if self._fix_swingh is None else self._fix_swingh
+
+        if self._attr_swing_mode == SWING_OFF:
+            self._swingv = STATE_OFF
+            self._swingh = STATE_OFF
+        elif self._attr_swing_mode in SWING_VERTICAL_POSITIONS:
+            self._swingv = self._attr_swing_mode
+            self._swingh = STATE_OFF
+        elif self._attr_swing_mode in SWING_HORIZONTAL_POSITIONS:
+            self._swingv = STATE_OFF
+            self._swingh = SWING_HORIZONTAL_PAYLOAD[self._attr_swing_mode]
+
+        if SWING_BOTH in (self._attr_swing_modes or []) or SWING_VERTICAL in (
+            self._attr_swing_modes or []
+        ):
+            if (
+                self._attr_swing_mode == SWING_BOTH
+                or self._attr_swing_mode == SWING_VERTICAL
+            ):
+                self._swingv = STATE_AUTO
+
+        if SWING_BOTH in (self._attr_swing_modes or []) or SWING_HORIZONTAL in (
+            self._attr_swing_modes or []
+        ):
+            if (
+                self._attr_swing_mode == SWING_BOTH
+                or self._attr_swing_mode == SWING_HORIZONTAL
+            ):
+                self._swingh = STATE_AUTO
 
     async def async_send_cmd(self):
         await self.send_ir()
@@ -1173,6 +1286,11 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
         if entity_id == self._temp_sensor:
             self._async_update_temp(new_state)
             self.async_schedule_update_ha_state()
+            if self._ifeel == STATE_ON:
+                reading = self._ifeel_temperature_from_sensor(new_state)
+                if reading is not None and reading != self._sensor_temp:
+                    self._state_mode = DEFAULT_STATE_MODE
+                    await self.async_send_cmd()
         elif entity_id == self._humidity_sensor:
             self._async_update_humidity(new_state)
             self.async_schedule_update_ha_state()
@@ -1262,39 +1380,13 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
 
     async def send_ir(self):
         """Send the payload to tasmota mqtt topic."""
+        if self._temp_sensor and self._ifeel == STATE_ON:
+            # Read fresh state when enabling iFeel and on every later command.
+            # Never substitute an old reading when the sensor is unavailable.
+            self._sensor_temp = self._ifeel_temperature_from_sensor(
+                self.hass.states.get(self._temp_sensor)
+            )
         fan_speed = self._fan_mode_payload.get(self.fan_mode, self.fan_mode)
-
-        # Set the swing mode - default off
-        self._swingv = STATE_OFF if self._fix_swingv is None else self._fix_swingv
-        self._swingh = STATE_OFF if self._fix_swingh is None else self._fix_swingh
-
-        if self._attr_swing_mode == SWING_OFF:
-            self._swingv = STATE_OFF
-            self._swingh = STATE_OFF
-        elif self._attr_swing_mode in SWING_VERTICAL_POSITIONS:
-            self._swingv = self._attr_swing_mode
-            self._swingh = STATE_OFF
-        elif self._attr_swing_mode in SWING_HORIZONTAL_POSITIONS:
-            self._swingv = STATE_OFF
-            self._swingh = SWING_HORIZONTAL_PAYLOAD[self._attr_swing_mode]
-
-        if SWING_BOTH in (self._attr_swing_modes or []) or SWING_VERTICAL in (
-            self._attr_swing_modes or []
-        ):
-            if (
-                self._attr_swing_mode == SWING_BOTH
-                or self._attr_swing_mode == SWING_VERTICAL
-            ):
-                self._swingv = STATE_AUTO
-
-        if SWING_BOTH in (self._attr_swing_modes or []) or SWING_HORIZONTAL in (
-            self._attr_swing_modes or []
-        ):
-            if (
-                self._attr_swing_mode == SWING_BOTH
-                or self._attr_swing_mode == SWING_HORIZONTAL
-            ):
-                self._swingh = STATE_AUTO
 
         _dt = dt_util.now()
         _min = _dt.hour * 60 + _dt.minute
@@ -1320,6 +1412,13 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
             "Clean": self._clean,
             "Beep": self._beep,
             "Sleep": self._sleep,
+            "iFeel": self._ifeel,
+            # Tasmota reads a float; -100 is IRremoteESP8266's no-reading
+            # sentinel. JSON null is only used in the reported state.
+            "SensorTemp": -100 if self._sensor_temp is None else TemperatureConverter.convert(
+                self._sensor_temp, UnitOfTemperature.CELSIUS,
+                self._sensor_temperature_unit(),
+            ),
             "Clock": int(_min),
             "Weekday": int(_dt.weekday()),
         }
@@ -1334,3 +1433,4 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
 
         # Update HA UI and State
         self.async_schedule_update_ha_state()
+        self._write_linked_entities()

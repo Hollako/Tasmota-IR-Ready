@@ -247,6 +247,8 @@ ATTR_FILTERS = "filters"
 ATTR_CLEAN = "clean"
 ATTR_BEEP = "beep"
 ATTR_SLEEP = "sleep"
+ATTR_IFEEL = "ifeel"
+ATTR_SENSOR_TEMP = "sensor_temp"
 ATTR_LAST_ON_MODE = "last_on_mode"
 ATTR_SWINGV = "swingv"
 ATTR_SWINGH = "swingh"
@@ -262,6 +264,8 @@ SERVICE_FILTERS_MODE = "set_filters"
 SERVICE_CLEAN_MODE = "set_clean"
 SERVICE_BEEP_MODE = "set_beep"
 SERVICE_SLEEP_MODE = "set_sleep"
+SERVICE_IFEEL_MODE = "set_ifeel"
+SERVICE_SENSOR_TEMP = "set_sensor_temp"
 SERVICE_SET_SWINGV = "set_swingv"
 SERVICE_SET_SWINGH = "set_swingh"
 
@@ -275,6 +279,8 @@ ATTRIBUTES_IRHVAC = {
     ATTR_CLEAN: "clean",
     ATTR_BEEP: "beep",
     ATTR_SLEEP: "sleep",
+    ATTR_IFEEL: "ifeel",
+    ATTR_SENSOR_TEMP: "sensor_temp",
     ATTR_LAST_ON_MODE: "last_on_mode",
     ATTR_SWINGV: "swingv",
     ATTR_SWINGH: "swingh",
@@ -351,6 +357,7 @@ TOGGLE_ALL_LIST = [
     "Clean",
     "Beep",
     "Sleep",
+    "iFeel",
 ]
 
 STATE_MODE_LIST = ["StoreOnly", "SendStore"]

@@ -160,7 +160,7 @@ def _entry_platforms(entry: ConfigEntry) -> list[str]:
         return ["fan"]
     if device_type == DEVICE_TYPE_HUMIDIFIER:
         return ["humidifier"]
-    return ["climate", "switch"]
+    return ["climate", "switch", "number"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

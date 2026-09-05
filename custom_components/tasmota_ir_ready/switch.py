@@ -31,6 +31,7 @@ _LOGGER = logging.getLogger(__name__)
 #                   None → is_on when value != turn_off_val  (e.g. Sleep)
 #   icon
 SWITCH_FEATURE_MAP: dict[str, tuple] = {
+    "iFeel":  ("iFeel",   "_ifeel",  "async_set_ifeel",   "ifeel",   "on",   "off", "on",   "mdi:thermometer-check"),
     "Turbo":  ("Turbo",   "_turbo",  "async_set_turbo",   "turbo",   "on",   "off", "on",   "mdi:rocket-launch"),
     "Quiet":  ("Quiet",   "_quiet",  "async_set_quiet",   "quiet",   "on",   "off", "on",   "mdi:volume-off"),
     "Econo":  ("Econo",   "_econo",  "async_set_econo",   "econo",   "on",   "off", "on",   "mdi:leaf"),
@@ -142,8 +143,9 @@ class TasmotaIrhvacSwitch(RestoreEntity, SwitchEntity):
         val = getattr(climate, self._climate_attr, self._turn_off_val)
         if self._on_check_val is not None:
             return val == self._on_check_val
-        # Fallback (e.g. Sleep): on = anything other than the off value
-        return val != self._turn_off_val
+        # Sleep arrives as a JSON number over MQTT, but configuration and
+        # switch commands use strings. Both -1 and "-1" mean disabled.
+        return str(val) != self._turn_off_val
 
     @property
     def available(self) -> bool:

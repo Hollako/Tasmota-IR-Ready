@@ -177,8 +177,50 @@ Optional switch entities for AC-specific functions:
 - `Clean`
 - `Beep`
 - `Sleep`
+- `iFeel`
 
 Only enable switches for features your AC and Tasmota protocol support.
+
+Select `iFeel` in the AC's **Feature Switches** options (or **Toggle Features**
+in IR Manager). The existing **Temperature Sensor** setting supplies both the
+room temperature shown on the climate entity and Tasmota's `SensorTemp`.
+Enabling iFeel sends the sensor's latest reading. While iFeel is on, changed,
+valid readings are sent automatically; while off, sensor updates only update
+the Home Assistant display. Temperature units are converted automatically.
+Unavailable or invalid readings do not trigger transmissions, and later commands
+send no reading instead of reusing a stale value.
+
+If no Temperature Sensor is configured, selecting iFeel creates an **iFeel Sensor
+Temperature** number for manual input. This reading is separate from the climate
+target temperature. Electra supports 0–50 °C; its IR protocol uses whole degrees.
+Home Assistant can display the number in your preferred temperature unit.
+
+The `ifeel` and `sensor_temp` climate attributes track received Tasmota state and
+are restored after restart. `sensor_temp` is stored in Celsius; `null` means no
+reading, not 0 °C. Outgoing values are converted to the configured Tasmota unit.
+
+Automations can call `tasmota_ir_ready.set_ifeel` with `ifeel: "on"` or `"off"`,
+and `tasmota_ir_ready.set_sensor_temp` with `sensor_temp: 25` (always Celsius).
+Manual `set_sensor_temp` calls are only available when no Temperature Sensor is
+configured, so they cannot override automatic readings. Both actions target the climate entity and support `state_mode: StoreOnly` or
+`SendStore` (default). Omit `sensor_temp` or pass `null` to clear it. For example:
+
+```yaml
+action: tasmota_ir_ready.set_sensor_temp
+target:
+  entity_id: climate.bedroom_ac
+data:
+  sensor_temp: "{{ states('sensor.bedroom_temperature') | float }}"
+```
+
+For the manual automation example, use a Celsius sensor and only call the action
+when its reading is numeric and within 0–50 °C. Normally, simply select that sensor
+in the integration settings instead. Automatic forwarding sends changed readings;
+it does not send periodic refreshes when a reading is unchanged.
+
+Protocol references: [Tasmota IRHVAC fields](https://github.com/arendst/Tasmota/blob/development/tasmota/tasmota_xdrv_driver/xdrv_05_irremote_full.ino)
+and [Electra iFeel implementation](https://github.com/crankyoldgit/IRremoteESP8266/blob/master/src/ir_Electra.cpp).
+
 
 ---
 
