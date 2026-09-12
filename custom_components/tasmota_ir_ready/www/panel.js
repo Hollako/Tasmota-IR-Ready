@@ -497,10 +497,16 @@ const CSS = `
   display: flex;
   flex-direction: column;
   height: 100%;
+  color-scheme: light;
+  --dropdown-solid-base: #fff;
   font-family: var(--paper-font-body1_-_font-family, Roboto, sans-serif);
   background: var(--primary-background-color, #fafafa);
   color: var(--primary-text-color, #212121);
   box-sizing: border-box;
+}
+:host([dark]) {
+  color-scheme: dark;
+  --dropdown-solid-base: #2d2d2d;
 }
 
 /* ---- top bar ---- */
@@ -753,7 +759,11 @@ const CSS = `
   top: calc(100% + 2px);
   left: 0; right: 0;
   z-index: 200;
-  background: var(--card-background-color, #2d2d2d);
+  background-color: var(--dropdown-solid-base);
+  background-image: linear-gradient(
+    var(--card-background-color, transparent),
+    var(--card-background-color, transparent)
+  );
   border: 1px solid var(--divider-color, #444);
   border-radius: 4px;
   box-shadow: 0 4px 16px rgba(0,0,0,.4);
@@ -912,7 +922,11 @@ const CSS = `
   top: calc(100% + 2px);
   left: 0; right: 0;
   z-index: 300;
-  background: var(--card-background-color, #2d2d2d);
+  background-color: var(--dropdown-solid-base);
+  background-image: linear-gradient(
+    var(--card-background-color, transparent),
+    var(--card-background-color, transparent)
+  );
   border: 1px solid var(--divider-color, #444);
   border-radius: 4px;
   box-shadow: 0 4px 20px rgba(0,0,0,.45);
@@ -1154,6 +1168,7 @@ class TasmotaIrhvacPanel extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
+    this.toggleAttribute("dark", hass.themes?.darkMode === true);
     if (!this._booted) {
       this._booted = true;
       this._boot();
