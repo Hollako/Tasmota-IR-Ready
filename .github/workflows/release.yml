@@ -1,0 +1,39 @@
+name: Build release asset
+
+on:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Set packaged integration version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          version="${RELEASE_TAG#v}"
+          jq --arg version "$version" '.version = $version' \
+            custom_components/tasmota_ir_ready/manifest.json \
+            > /tmp/manifest.json
+          mv /tmp/manifest.json \
+            custom_components/tasmota_ir_ready/manifest.json
+
+      - name: Build HACS archive
+        working-directory: custom_components/tasmota_ir_ready
+        run: zip -r "$GITHUB_WORKSPACE/tasmota_ir_ready.zip" .
+
+      - name: Upload release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$RELEASE_TAG" tasmota_ir_ready.zip --clobber
