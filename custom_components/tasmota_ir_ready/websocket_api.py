@@ -11,7 +11,7 @@ import voluptuous as vol
 from homeassistant.components import mqtt, websocket_api
 from homeassistant.core import HomeAssistant, callback
 
-from .const import CONF_TEMP_SENSOR, DOMAIN
+from .const import CONF_MODEL, CONF_TEMP_SENSOR, DOMAIN
 from .irsend import build_irsend_payload
 
 _LOGGER = logging.getLogger(__name__)
@@ -27,6 +27,8 @@ def _entry_to_dict(entry) -> dict[str, Any]:
     options = {**entry.data, **entry.options}
     if CONF_TEMP_SENSOR not in options and "temp_sensor" in options:
         options[CONF_TEMP_SENSOR] = options["temp_sensor"]
+    if CONF_MODEL not in options and "model" in options:
+        options[CONF_MODEL] = options["model"]
     return {
         "entry_id": entry.entry_id,
         "title": entry.title,

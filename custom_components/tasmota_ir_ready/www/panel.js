@@ -184,7 +184,7 @@ const SECTIONS = {
         rsel("precision", "Precision", PRECISION_OPTS),
         rsel("temp_step", "Temperature Step", TEMP_STEP_OPTS),
         rsel("celsius", "Temperature Unit", CELSIUS_OPTS),
-        f("model", "AC Model Override (optional, -1 = auto)"),
+        f("hvac_model", "AC Model Override (optional, -1 = auto)"),
         n("away_temp", "Away Temp (0 = Disabled)", 0, 35, 0.5, "°"),
       ],
     },
@@ -465,7 +465,7 @@ const FIELD_DEFAULTS = {
   temp_step:               "0.5",
   celsius:                 "on",
   // Climate — behavior
-  model:                   "-1",
+  hvac_model:              "-1",
   sleep:                   "-1",
   away_temp:               0,
   default_swingv:          "off",
@@ -1204,11 +1204,20 @@ class TasmotaIrhvacPanel extends HTMLElement {
   // Entry selection
   // -----------------------------------------------------------------------
 
+  _editValuesFor(entry) {
+    const saved = { ...(entry?.options || {}) };
+    if (!("hvac_model" in saved) && "model" in saved) {
+      saved.hvac_model = saved.model;
+    }
+    delete saved.model;
+    return { ...FIELD_DEFAULTS, ...saved };
+  }
+
   _selectEntry(entry) {
     this._selected = entry;
     // Merge defaults first so new entries are immediately save-able,
     // then override with any values the entry already has saved.
-    this._editValues = { ...FIELD_DEFAULTS, ...(entry.options || {}) };
+    this._editValues = this._editValuesFor(entry);
     this._sourceCount = Math.max(2, this._countFilledSources());
     this._fanSpeedCount = Math.max(2, this._countFilledFanSpeeds());
     this._humidifierModeCount = Math.max(2, this._countFilledHumidifierModes());
@@ -1333,7 +1342,7 @@ class TasmotaIrhvacPanel extends HTMLElement {
       const updated = this._entries.find(e => e.entry_id === this._selected.entry_id);
       if (updated) {
         this._selected = updated;
-        this._editValues = { ...FIELD_DEFAULTS, ...(updated.options || {}) };
+        this._editValues = this._editValuesFor(updated);
       }
       this._render();
       this._showStatus("ok", "Saved and reloaded.");
@@ -1884,7 +1893,13 @@ class TasmotaIrhvacPanel extends HTMLElement {
   }
 
   _applyProfile(profile, statusText) {
-    const opts = profile.options || profile;
+    const opts = { ...(profile.options || profile) };
+    if ((opts.device_type || "climate") === "climate") {
+      if (!("hvac_model" in opts) && "model" in opts) {
+        opts.hvac_model = opts.model;
+      }
+      delete opts.model;
+    }
 
     // Preserve connection-specific fields (topics, sensors, name) — everything
     // else gets wiped so stale IR codes from the previous profile don't linger.
@@ -2589,7 +2604,7 @@ class TasmotaIrhvacPanel extends HTMLElement {
       this._showStatus("info", "Refreshing…");
       await this._loadEntries();
       this._selected = this._entries.find(e => e.entry_id === this._selected?.entry_id) || null;
-      if (this._selected) this._editValues = { ...FIELD_DEFAULTS, ...(this._selected.options || {}) };
+      if (this._selected) this._editValues = this._editValuesFor(this._selected);
       this._render();
       this._showStatus("ok", "Refreshed.");
     });

@@ -14,7 +14,8 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from .const import CONF_TOGGLE_LIST, DATA_KEY, DEFAULT_STATE_MODE, DOMAIN
+from .const import CONF_MODEL, CONF_TOGGLE_LIST, CONF_VENDOR, DATA_KEY, DEFAULT_STATE_MODE, DOMAIN
+from .gz055be1 import is_gz055be1
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -70,6 +71,10 @@ async def async_setup_entry(
             _LOGGER.warning("Unknown feature key '%s' in toggle list — skipped.", key)
             continue
         label, climate_attr, method_name, kwarg_name, turn_on_val, turn_off_val, on_check_val, icon = feature
+        if key == "Turbo" and is_gz055be1(
+            config.get(CONF_VENDOR), config.get(CONF_MODEL, config.get("model"))
+        ):
+            label = "Super"
         switches.append(
             TasmotaIrhvacSwitch(
                 hass=hass,

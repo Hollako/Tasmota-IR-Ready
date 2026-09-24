@@ -162,8 +162,19 @@ from .const import (
     FAN_MODES_ORDER,
     SWING_VERTICAL_POSITIONS,
 )
+from .gz055be1 import (
+    build_gz055be1_auto_frame,
+    is_gz055be1,
+    is_gz055be1_frame,
+)
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _is_sleep_enabled(value) -> bool:
+    """Return whether the IRHVAC Sleep value represents an active timer."""
+    return str(value).lower() not in {"-1", "off", "none", ""}
+
 
 DATA_SERVICES_REGISTERED = f"{DATA_KEY}.services_registered"
 
@@ -362,6 +373,10 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         CONF_UNIQUE_ID: config_entry.entry_id,
     }
 
+    entry_values = {**config_entry.data, **config_entry.options}
+    if CONF_MODEL not in entry_values and "model" in entry_values:
+        config[CONF_MODEL] = entry_values["model"]
+
     # Coerce numeric fields that may have been stored as strings by selectors.
     for key in (CONF_PRECISION, CONF_TEMP_STEP, CONF_MQTT_DELAY,
                 CONF_MIN_TEMP, CONF_MAX_TEMP, CONF_TARGET_TEMP):
@@ -515,6 +530,8 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
         self._use_track_state_change_event = False
         self._unsubscribes = []
         self._linked_entities: list = []
+        self._gz055be1_last_auto_raw: bytes | None = None
+        self._gz055be1_super_saved_state: dict | None = None
 
         self.availability_topic = config.get(CONF_AVAILABILITY_TOPIC)
         if self.availability_topic is None:
@@ -645,6 +662,13 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
                 self._fan_mode_payload[display_mode] = payload_mode
 
         return display_modes or None
+
+    @property
+    def fan_modes(self):
+        """Return fan modes available in the current operating mode."""
+        if self._is_gz055be1() and self._attr_hvac_mode == HVACMode.DRY:
+            return [FAN_AUTO]
+        return self._attr_fan_modes
 
     def _fan_mode_from_payload(self, payload_mode):
         """Return the HA fan mode that represents a Tasmota FanSpeed payload."""
@@ -821,18 +845,48 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
 
             # If listening to `tele`, result looks like: {"IrReceived":{"Protocol":"XXX", ... ,"IRHVAC":{ ... }}}
             # we want to extract the data.
+            raw_candidate = None
             if "IrReceived" in json_payload:
-                json_payload = json_payload["IrReceived"]
+                ir_received = json_payload["IrReceived"]
+                raw_data = ir_received.get("Data")
+                if isinstance(raw_data, str):
+                    try:
+                        hex_data = raw_data[2:] if raw_data.lower().startswith("0x") else raw_data
+                        decoded = bytes.fromhex(hex_data)
+                        if is_gz055be1_frame(ir_received.get("Protocol"), decoded):
+                            raw_candidate = decoded
+                    except ValueError:
+                        pass
+                json_payload = ir_received
 
             # By now the payload must include an `IRHVAC` field.
             if "IRHVAC" not in json_payload:
                 return
 
             payload = json_payload["IRHVAC"]
+            payload_vendor = str(payload.get("Vendor", ""))
+            payload_model = payload.get("Model")
+            vendor_matches = payload_vendor.upper() == str(self._vendor).upper()
+            if (
+                not vendor_matches
+                and is_gz055be1(payload_vendor, payload_model)
+                and self._is_gz055be1()
+            ):
+                vendor_matches = True
 
-            if payload["Vendor"] == self._vendor:
+            if vendor_matches:
                 # All values in the payload are Optional
                 prev_power = self.power_mode
+                incoming_turbo = str(payload.get("Turbo", self._turbo)).lower()
+                gz055be1_super_reported = (
+                    self._is_gz055be1() and incoming_turbo == STATE_ON
+                )
+                if gz055be1_super_reported and self._turbo != STATE_ON:
+                    self._gz055be1_super_saved_state = {
+                        "temperature": self._attr_target_temperature,
+                        "fan_mode": self._attr_fan_mode,
+                        "swing_mode": self._attr_swing_mode,
+                    }
                 if "Power" in payload:
                     self.power_mode = payload["Power"].lower()
                 if "Mode" in payload:
@@ -840,7 +894,13 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
                     # Some vendors send/receive mode as fan instead of fan_only
                     if self._attr_hvac_mode == HVACAction.FAN:
                         self._attr_hvac_mode = HVACMode.FAN_ONLY
-                if "Temp" in payload:
+                    if (
+                        raw_candidate is not None
+                        and self._is_gz055be1()
+                        and self._attr_hvac_mode == HVACMode.AUTO
+                    ):
+                        self._gz055be1_last_auto_raw = raw_candidate
+                if "Temp" in payload and not gz055be1_super_reported:
                     if payload["Temp"] > 0:
                         if not (self.power_mode == STATE_OFF and self._ignore_off_temp):
                             self._attr_target_temperature = payload["Temp"]
@@ -849,7 +909,18 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
                 if "Quiet" in payload:
                     self._quiet = payload["Quiet"].lower()
                 if "Turbo" in payload:
-                    self._turbo = payload["Turbo"].lower()
+                    received_turbo = str(payload["Turbo"]).lower()
+                    self._turbo = received_turbo
+                    if (
+                        self._is_gz055be1()
+                        and received_turbo == STATE_OFF
+                        and self._gz055be1_super_saved_state
+                    ):
+                        saved = self._gz055be1_super_saved_state
+                        self._attr_target_temperature = saved["temperature"]
+                        self._attr_fan_mode = saved["fan_mode"]
+                        self._attr_swing_mode = saved["swing_mode"]
+                        self._gz055be1_super_saved_state = None
                 if "Econo" in payload:
                     self._econo = payload["Econo"].lower()
                 if "Light" in payload:
@@ -863,18 +934,18 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
                 self._update_ifeel_from_payload(payload)
                 if "Sleep" in payload:
                     self._sleep = payload["Sleep"]
-                if "SwingV" in payload:
+                if "SwingV" in payload and not gz055be1_super_reported:
                     self._swingv = payload["SwingV"].lower()
                     if self._swingv != "auto":
                         self._fix_swingv = self._swingv
-                if "SwingH" in payload:
+                if "SwingH" in payload and not gz055be1_super_reported:
                     self._swingh = payload["SwingH"].lower()
                     if self._swingh != "auto":
                         self._fix_swingh = self._swingh
 
                 self._attr_swing_mode = self._swing_mode_from_payload()
 
-                if "FanSpeed" in payload:
+                if "FanSpeed" in payload and not gz055be1_super_reported:
                     fan_mode = payload["FanSpeed"].lower()
                     self._attr_fan_mode = self._fan_mode_from_payload(fan_mode)
                     _LOGGER.debug(self._attr_fan_mode)
@@ -999,9 +1070,17 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
         hvac_mode = kwargs.get(ATTR_HVAC_MODE)
         if temperature is None:
             return
+        if self._gz055be1_super_active() and hvac_mode is None:
+            _LOGGER.debug("Ignoring temperature change while GZ055BE1 Super is active")
+            return
 
         if hvac_mode is not None:
             await self.set_mode(hvac_mode)
+
+        if self._is_gz055be1() and self._attr_hvac_mode == HVACMode.DRY:
+            temperature = 24
+        elif self._is_gz055be1_auto_mode():
+            temperature = min(26, max(22, round(float(temperature))))
 
         self._attr_target_temperature = temperature
         if not self._attr_hvac_mode == HVACMode.OFF:
@@ -1010,6 +1089,9 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
 
     async def async_set_fan_mode(self, fan_mode):
         """Set new target fan mode."""
+        if self._gz055be1_super_active():
+            _LOGGER.debug("Ignoring fan change while GZ055BE1 Super is active")
+            return
         if fan_mode not in (self._attr_fan_modes or []):
             # tweak for some ELECTRA_AC devices
             if self.use_electra_tweak:
@@ -1028,6 +1110,14 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
                 _LOGGER.error(self._attr_fan_modes)
                 return
 
+        if (
+            self._is_gz055be1()
+            and self._attr_hvac_mode == HVACMode.DRY
+            and fan_mode != FAN_AUTO
+        ):
+            _LOGGER.debug("Ignoring GZ055BE1 Dry fan change: fan is fixed to Auto")
+            return
+
         self._attr_fan_mode = fan_mode
         # Manually selecting a fan speed implies the user no longer wants turbo.
         self._turbo = "off"
@@ -1040,6 +1130,9 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
 
     async def async_set_swing_mode(self, swing_mode):
         """Set new target swing operation."""
+        if self._gz055be1_super_active():
+            _LOGGER.debug("Ignoring swing change while GZ055BE1 Super is active")
+            return
         if swing_mode not in (self._attr_swing_modes or []):
             _LOGGER.error(
                 "Invalid swing mode selected. Got '%s'. Allowed modes are:", swing_mode
@@ -1071,15 +1164,43 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
         """Set new target econo mode."""
         if econo not in ON_OFF_LIST:
             return
+        if self._gz055be1_super_active() and econo.lower() == STATE_ON:
+            _LOGGER.debug("Ignoring Econo enable while GZ055BE1 Super is active")
+            return
         self._econo = econo.lower()
+        if self._is_gz055be1() and self._econo == STATE_ON and _is_sleep_enabled(self._sleep):
+            self._sleep = "-1"
         self._state_mode = state_mode
         await self.async_send_cmd()
 
     async def async_set_turbo(self, turbo, state_mode):
-        """Set new target turbo mode."""
+        """Set the generic Turbo feature or GZ055BE1 Super override."""
         if turbo not in ON_OFF_LIST:
             return
-        self._turbo = turbo.lower()
+        turbo = turbo.lower()
+        if self._is_gz055be1_auto_mode():
+            _LOGGER.debug("Ignoring Super change in GZ055BE1 Auto mode")
+            return
+        if self._is_gz055be1() and turbo == STATE_ON:
+            if self._turbo != STATE_ON:
+                self._gz055be1_super_saved_state = {
+                    "temperature": self._attr_target_temperature,
+                    "fan_mode": self._attr_fan_mode,
+                    "swing_mode": self._attr_swing_mode,
+                }
+            self._sleep = "-1"
+            self._econo = STATE_OFF
+        self._turbo = turbo
+        if (
+            self._is_gz055be1()
+            and turbo == STATE_OFF
+            and self._gz055be1_super_saved_state
+        ):
+            saved = self._gz055be1_super_saved_state
+            self._attr_target_temperature = saved["temperature"]
+            self._attr_fan_mode = saved["fan_mode"]
+            self._attr_swing_mode = saved["swing_mode"]
+            self._gz055be1_super_saved_state = None
         self._state_mode = state_mode
         await self.async_send_cmd()
 
@@ -1189,12 +1310,21 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
 
     async def async_set_sleep(self, sleep, state_mode):
         """Set new target sleep mode."""
-        self._sleep = sleep.lower()
+        sleep = sleep.lower()
+        if self._gz055be1_super_active() and _is_sleep_enabled(sleep):
+            _LOGGER.debug("Ignoring Sleep enable while GZ055BE1 Super is active")
+            return
+        self._sleep = sleep
+        if self._is_gz055be1() and _is_sleep_enabled(self._sleep):
+            self._econo = STATE_OFF
         self._state_mode = state_mode
         await self.async_send_cmd()
 
     async def async_set_swingv(self, swingv, state_mode):
         """Set the vertical vane independently of the climate dropdown."""
+        if self._gz055be1_super_active():
+            _LOGGER.debug("Ignoring vertical swing change while GZ055BE1 Super is active")
+            return
         self._swingv = swingv.lower()
         self._fix_swingv = None if self._swingv == STATE_AUTO else self._swingv
         self._attr_swing_mode = self._swing_mode_from_payload()
@@ -1203,6 +1333,9 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
 
     async def async_set_swingh(self, swingh, state_mode):
         """Set the horizontal vane independently of the climate dropdown."""
+        if self._gz055be1_super_active():
+            _LOGGER.debug("Ignoring horizontal swing change while GZ055BE1 Super is active")
+            return
         self._swingh = swingh.lower()
         self._fix_swingh = None if self._swingh == STATE_AUTO else self._swingh
         self._attr_swing_mode = self._swing_mode_from_payload()
@@ -1250,18 +1383,38 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
     async def async_send_cmd(self):
         await self.send_ir()
 
-    @cached_property
+    def _is_gz055be1(self) -> bool:
+        """Return whether this entity uses the GZ055BE1 profile."""
+        return is_gz055be1(self._vendor, self._model)
+
+    def _is_gz055be1_auto_mode(self) -> bool:
+        """Return whether this GZ055BE1 entity is in Auto/Feel mode."""
+        return self._is_gz055be1() and self._attr_hvac_mode == HVACMode.AUTO
+
+    def _gz055be1_super_active(self) -> bool:
+        """Return whether the GZ055BE1 Super override is active."""
+        return self._is_gz055be1() and self._turbo == STATE_ON
+
+    @property
     def min_temp(self):
         """Return the minimum temperature."""
+        if self._is_gz055be1() and self._attr_hvac_mode == HVACMode.DRY:
+            return 24
+        if self._is_gz055be1_auto_mode():
+            return 22
         if self._min_temp:
             return self._min_temp
 
         # get default temp from super class
         return super().min_temp
 
-    @cached_property
+    @property
     def max_temp(self):
         """Return the maximum temperature."""
+        if self._is_gz055be1() and self._attr_hvac_mode == HVACMode.DRY:
+            return 24
+        if self._is_gz055be1_auto_mode():
+            return 26
         if self._max_temp:
             return self._max_temp
 
@@ -1356,6 +1509,9 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
 
         This method must be run in the event loop and returns a coroutine.
         """
+        if self._gz055be1_super_active():
+            _LOGGER.debug("Ignoring preset change while GZ055BE1 Super is active")
+            return
         if preset_mode == PRESET_AWAY and not self._is_away:
             self._is_away = True
             self._saved_target_temp = self._attr_target_temperature
@@ -1368,6 +1524,10 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
 
     async def set_mode(self, hvac_mode):
         """Set hvac mode."""
+        if self._gz055be1_super_active():
+            self._turbo = STATE_OFF
+            self._gz055be1_super_saved_state = None
+            self._write_linked_entities()
         hvac_mode = hvac_mode.lower()
         if hvac_mode not in self._attr_hvac_modes or hvac_mode == HVACMode.OFF:
             self._attr_hvac_mode = HVACMode.OFF
@@ -1377,6 +1537,13 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
             self._attr_hvac_mode = self._last_on_mode = hvac_mode
             self._enabled = True
             self.power_mode = STATE_ON
+            if self._is_gz055be1() and hvac_mode == HVACMode.AUTO:
+                current = float(self._attr_target_temperature or 24)
+                self._attr_target_temperature = min(26, max(22, round(current)))
+            elif self._is_gz055be1() and hvac_mode == HVACMode.DRY:
+                self._attr_target_temperature = 24
+                if FAN_AUTO in (self._attr_fan_modes or []):
+                    self._attr_fan_mode = FAN_AUTO
 
     async def send_ir(self):
         """Send the payload to tasmota mqtt topic."""
@@ -1387,6 +1554,45 @@ class TasmotaIrhvac(RestoreEntity, ClimateEntity):
                 self.hass.states.get(self._temp_sensor)
             )
         fan_speed = self._fan_mode_payload.get(self.fan_mode, self.fan_mode)
+
+        if self._is_gz055be1_auto_mode():
+            command_topic, separator, command = self.topic.rpartition("/")
+            if not separator or command.lower() != "irhvac":
+                _LOGGER.error(
+                    "GZ055BE1 Auto mode requires a command topic ending in /IRHVAC; got %s",
+                    self.topic,
+                )
+                return
+
+            try:
+                frame = build_gz055be1_auto_frame(
+                    power=self.power_mode,
+                    temperature=self._attr_target_temperature,
+                    fan_mode=fan_speed,
+                    swingv=self._swingv,
+                    swingh=self._swingh,
+                    light=self._light,
+                    previous_raw=self._gz055be1_last_auto_raw,
+                )
+            except ValueError as ex:
+                _LOGGER.error("Unable to build GZ055BE1 Auto frame: %s", ex)
+                return
+
+            self._state_mode = DEFAULT_STATE_MODE
+            if float(self._mqtt_delay) != float(DEFAULT_MQTT_DELAY):
+                await asyncio.sleep(float(self._mqtt_delay))
+
+            payload = json.dumps(
+                {
+                    "Protocol": "TEKNOPOINT",
+                    "Bits": 112,
+                    "Data": "0x" + frame.hex().upper(),
+                }
+            )
+            await mqtt.async_publish(self.hass, f"{command_topic}/IRSend", payload)
+            self.async_schedule_update_ha_state()
+            self._write_linked_entities()
+            return
 
         _dt = dt_util.now()
         _min = _dt.hour * 60 + _dt.minute

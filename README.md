@@ -163,6 +163,10 @@ Use your original AC remote and the Tasmota console to discover the values your 
 
 `vertical`, `horizontal`, and `both` are automatic swing modes. Fixed vane positions send exact `SwingV` or `SwingH` values to Tasmota. `horizontal middle` is displayed separately to avoid conflicting with vertical `middle`, but sends `SwingH: middle` to Tasmota.
 
+### IFB/Teknopoint GZ055BE1
+
+The GZ055BE1 remote has dedicated support for the Auto/Feel frames that Tasmota's generic `IRHVAC` builder cannot reproduce. Configure either `TEKNOPOINT` with model `2`, or `TCL112AC` with model `GZ055BE1`, in **AC Model Override**. Auto mode supports 22-26 C, Dry is fixed to 24 C with Auto fan, and the Turbo feature is displayed as **Super** only for this model. The MQTT command topic must end in `/IRHVAC` so the integration can send the special Auto frame through the matching `/IRSend` topic.
+
 ### Feature Switches
 
 Optional switch entities for AC-specific functions:

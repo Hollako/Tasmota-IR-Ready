@@ -33,7 +33,7 @@
     "precision": 0.1,
     "temp_step": 1,
     "celsius": "on",
-    "model": "-1",
+    "hvac_model": "-1",
     "sleep": "-1",
     "away_temp": 0,
     "default_swingv": "off",
